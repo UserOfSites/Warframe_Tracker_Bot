@@ -1,0 +1,46 @@
+[project]
+name = "titania"
+version = "0.1.0"
+description = "Warframe relic-cracking Discord bot — surfaces fast Void Fissures and dojoshare Steel Path nodes."
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.4",
+    "httpx>=0.27",
+    "pydantic-settings>=2.4",
+    "cachetools>=5.5",
+    "aiosqlite>=0.20",
+    "babel>=2.16",
+    "slpp>=1.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.scripts]
+titania = "titania.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["titania"]
+# PNG assets live as data inside the titania.assets subpackage and are loaded
+# via importlib.resources at runtime.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

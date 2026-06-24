@@ -1,0 +1,25 @@
+[embed]
+title = "Active Void Fissures"
+
+[embed.section]
+normal = "Normal"
+steel_path = "Steel Path"
+dojoshare = "Dojoshare"
+next_resets = "Next resets"
+
+[embed.empty]
+normal = "No fast Normal fissures right now."
+steel_path = "No fast Steel Path fissures right now."
+dojoshare = "No dojoshare fissures right now."
+next_resets = "No active fissures."
+
+[embed.next_resets_block]
+none_active = "(none active)"
+
+[embed.footer]
+updated = "Updated"
+
+[humanize]
+expired = "expired"
+minutes = "in {m}m"
+hours_minutes = "in {h}h {m:02d}m"

@@ -1,0 +1,14 @@
+services:
+  titania:
+    build: .
+    container_name: titania
+    env_file:
+      - .env
+    environment:
+      DB_PATH: /data/titania.db
+    volumes:
+      - titania-data:/data
+    restart: unless-stopped
+
+volumes:
+  titania-data:

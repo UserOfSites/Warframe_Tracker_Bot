@@ -1,0 +1,25 @@
+[embed]
+title = "Fissure del Vuoto attive"
+
+[embed.section]
+normal = "Normali"
+steel_path = "Steel Path"
+dojoshare = "Dojoshare"
+next_resets = "Prossimi reset"
+
+[embed.empty]
+normal = "Nessuna fissura veloce Normale al momento."
+steel_path = "Nessuna fissura veloce Steel Path al momento."
+dojoshare = "Nessuna fissura dojoshare al momento."
+next_resets = "Nessuna fissura attiva."
+
+[embed.next_resets_block]
+none_active = "(nessuna attiva)"
+
+[embed.footer]
+updated = "Aggiornato"
+
+[humanize]
+expired = "scaduto"
+minutes = "tra {m}m"
+hours_minutes = "tra {h}h {m:02d}m"
