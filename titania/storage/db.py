@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS tracked_vendors_channels (
     message_id INTEGER NOT NULL,
     created_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS fissure_subscriptions (
+    guild_id   INTEGER NOT NULL,
+    user_id    INTEGER NOT NULL,
+    topic      TEXT    NOT NULL,
+    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (guild_id, user_id, topic)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fissure_subs_guild_topic
+    ON fissure_subscriptions (guild_id, topic);
 """
 
 

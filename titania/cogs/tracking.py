@@ -37,9 +37,15 @@ class Tracking(commands.Cog):
         # Check we can actually post in the requested channel.
         me = channel.guild.me
         perms = channel.permissions_for(me) if me else None
-        if perms is None or not (perms.send_messages and perms.embed_links):
+        if perms is None or not (
+            perms.send_messages
+            and perms.embed_links
+            and perms.add_reactions
+            and perms.read_message_history
+        ):
             await interaction.response.send_message(
-                f"I need **Send Messages** and **Embed Links** in {channel.mention}.",
+                f"I need **Send Messages**, **Embed Links**, **Add Reactions**, "
+                f"and **Read Message History** in {channel.mention}.",
                 ephemeral=True,
             )
             return
@@ -62,6 +68,10 @@ class Tracking(commands.Cog):
                 message_id=posted.id,
             )
         )
+        # Seed one reaction per topic so users have something to click to
+        # subscribe. The bot's reaction acts as a permanent placeholder; users
+        # toggle by clicking the count.
+        await self.bot.reaction_subscriber.seed_reactions(posted)
 
         await interaction.followup.send(
             f"Tracking active fissures in {channel.mention}. "

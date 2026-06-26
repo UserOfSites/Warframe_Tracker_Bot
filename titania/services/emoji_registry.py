@@ -83,6 +83,12 @@ ASSET_TO_EMOJI: dict[str, EmojiSource] = {
     # doesn't, so it's bundled locally as a hand-picked asset.
     "ducats": RemoteSource("Ducat.png"),
     "credits": LocalSource("Credits.png"),
+    # Faction/social icons used by the fissure-subscription buttons. Neither
+    # is on the warframestat CDN, so the operator drops the PNG into
+    # titania/assets/. Missing assets degrade gracefully — sync logs and skips
+    # the upload, and the subscription view falls back to a label-only button.
+    "tenno": LocalSource("tenno.png"),
+    "clan_xp": LocalSource("clan_xp.png"),
 }
 
 

@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import discord
 
+from titania.domain.era import Era
+from titania.domain.railjack import is_railjack
 from titania.i18n.translator import Translator
 from titania.presentation.embeds import build_fissure_embed
 from titania.presentation.vendor_embed import build_vendors_embed
@@ -72,6 +74,35 @@ class FissureRefresher:
             self.build_vendors_embed,
             label="vendors",
         )
+        try:
+            await self._dispatch_notifications()
+        except Exception:
+            log.exception("notification dispatch failed")
+
+    async def _dispatch_notifications(self) -> None:
+        """Edge-trigger DMs to subscribers when matching fissures go live.
+
+        Runs after the embed refresh so a failure here doesn't block the
+        visible tracker. Iterates only guilds that have at least one
+        subscription, so cost is bounded by actual users opted in.
+        """
+        guild_ids = await self._bot.subscriptions_repo.list_subscribed_guilds()
+        if not guild_ids:
+            return
+        # Same upstream-cleanup the board does (railjack/requiem dropped).
+        all_fissures = [
+            f
+            for f in await self._bot.data_source.fetch_fissures()
+            if not is_railjack(f) and f.era is not Era.REQUIEM
+        ]
+        for gid in guild_ids:
+            try:
+                settings = await self._bot.settings_repo.get(gid)
+                await self._bot.notifier.process_guild(
+                    gid, all_fissures, settings.dojoshare_nodes
+                )
+            except Exception:
+                log.exception("notifier failed for guild=%s", gid)
 
     async def _refresh_kind(
         self,

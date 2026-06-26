@@ -2,7 +2,7 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any
 
-from titania.data.baro.history import BaroHistoryClient, BaroItemHistory
+from titania.data.baro.history import BaroHistoryClient, BaroItemHistory, _norm
 from titania.data.source import WarframeDataSource
 from titania.domain.baro import (
     BaroBoard,
@@ -12,6 +12,28 @@ from titania.domain.baro import (
 )
 
 log = logging.getLogger(__name__)
+
+# Items omitted from the rendered inventory entirely. The Treasure Box is the
+# loot crate Baro always carries; it has no wiki entry so we can't rely on the
+# wiki Type signal for it. Add other unmappable always-omit names here.
+_HIDDEN_NAMES_NORM: frozenset[str] = frozenset({
+    _norm("Baro Treasure Box"),
+})
+
+# Wiki Type values whose items we omit from the rendered inventory. ``Lootbox``
+# covers mystery boxes (currently ``Void Surplus``) that the wiki *does* index
+# — keeping this data-driven means new boxes Baro adds get hidden automatically
+# as soon as the wiki catalogues them.
+_HIDDEN_WIKI_TYPES: frozenset[str] = frozenset({"lootbox"})
+
+
+def _is_hidden(item: BaroInventoryItem, history: BaroItemHistory | None) -> bool:
+    if _norm(item.name) in _HIDDEN_NAMES_NORM:
+        return True
+    if history is not None:
+        if (history.item_type or "").strip().lower() in _HIDDEN_WIKI_TYPES:
+            return True
+    return False
 
 
 def _parse_dt(raw: str | None) -> datetime:
@@ -119,6 +141,8 @@ class BaroService:
         enriched: list[EnrichedBaroItem] = []
         for item in state.inventory:
             history = history_index.get(item.name)
+            if _is_hidden(item, history):
+                continue
             if history is None:
                 enriched.append(
                     EnrichedBaroItem(
@@ -128,6 +152,8 @@ class BaroService:
                         last_appearance=None,
                         total_appearances=0,
                         image_name=None,
+                        wiki_known=False,
+                        item_type=None,
                     )
                 )
                 continue
@@ -139,6 +165,8 @@ class BaroService:
                     last_appearance=_last_appearance_before(history, current_visit_date),
                     total_appearances=len(history.appearances),
                     image_name=history.image,
+                    wiki_known=True,
+                    item_type=history.item_type,
                 )
             )
         enriched_tuple = tuple(enriched)

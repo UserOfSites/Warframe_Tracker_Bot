@@ -15,12 +15,22 @@ import logging
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from difflib import SequenceMatcher, get_close_matches
 from typing import Iterable
 
 import httpx
 from slpp import slpp as lua  # type: ignore[import-untyped]
 
 log = logging.getLogger(__name__)
+
+# Fuzzy match parameters for upstream/wiki name reconciliation.
+# Cutoff 0.90 catches single-edit typos ("Prime"→"Primed", "Veolicpod"→
+# "Velocipod") without admitting "Leg Plate" vs "Knee Plate" style false
+# positives (those land around 0.85). The margin requirement guards against
+# the case where two equally-close wiki items both clear the cutoff — better
+# to render "unknown" than misattribute history.
+_FUZZY_CUTOFF = 0.90
+_FUZZY_MIN_MARGIN = 0.05
 
 _WIKI_API = "https://wiki.warframe.com/api.php"
 _MODULE_PAGE = "Module:Baro/data"
@@ -107,17 +117,41 @@ class BaroHistoryClient:
             return self._items
 
     async def lookup(self, names: Iterable[str]) -> dict[str, BaroItemHistory]:
-        """Resolve multiple item names in one go, case- and whitespace-tolerant."""
+        """Resolve multiple item names in one go, tolerant of upstream noise.
+
+        Layered fallbacks for the recurring shapes of warframestat ↔ wiki
+        mismatch:
+          1. exact normalized match (case/whitespace folded);
+          2. strip a parenthesized suffix (e.g. ``Axi A2 Relic (Intact)``)
+             and retry exact;
+          3. fuzzy ratio match, accepted only when a single canonical name
+             clearly beats every other candidate.
+        Anything still unmatched is omitted — the caller renders those as
+        "unknown" rather than risking a wrong-attribution.
+        """
         catalog = await self.items()
-        # Build a normalized index once per call (the catalog is small enough).
         index: dict[str, BaroItemHistory] = {
             _norm(item.name): item for item in catalog.values()
         }
+        candidate_keys = list(index.keys())
         out: dict[str, BaroItemHistory] = {}
         for n in names:
-            hit = index.get(_norm(n))
+            key = _norm(n)
+            hit = index.get(key)
             if hit is not None:
                 out[n] = hit
+                continue
+            stripped = _strip_paren_suffix(key)
+            if stripped != key:
+                hit = index.get(stripped)
+                if hit is not None:
+                    out[n] = hit
+                    log.info("baro lookup matched %r via suffix-strip → %r", n, hit.name)
+                    continue
+            best = _best_fuzzy_match(key, candidate_keys)
+            if best is not None:
+                out[n] = index[best]
+                log.info("baro lookup matched %r via fuzzy → %r", n, index[best].name)
         return out
 
     async def aclose(self) -> None:
@@ -168,6 +202,27 @@ def _parse_lua(source: str) -> dict[str, BaroItemHistory]:
 
 def _norm(s: str) -> str:
     return " ".join(s.strip().lower().split())
+
+
+def _strip_paren_suffix(s: str) -> str:
+    """``'axi a2 relic (intact)'`` → ``'axi a2 relic'``."""
+    idx = s.rfind("(")
+    if idx <= 0:
+        return s
+    return s[:idx].rstrip()
+
+
+def _best_fuzzy_match(query: str, candidates: list[str]) -> str | None:
+    """Top-ranked candidate that clears the cutoff and clearly beats the runner-up."""
+    near = get_close_matches(query, candidates, n=3, cutoff=_FUZZY_CUTOFF)
+    if not near:
+        return None
+    top_ratio = SequenceMatcher(None, query, near[0]).ratio()
+    if len(near) >= 2:
+        runner_ratio = SequenceMatcher(None, query, near[1]).ratio()
+        if top_ratio - runner_ratio < _FUZZY_MIN_MARGIN:
+            return None
+    return near[0]
 
 
 def humanize_since(d: date | None, now: datetime | None = None) -> str:
