@@ -136,10 +136,9 @@ class FilterPanel(discord.ui.View):
         # showing no node controls.
         self._node_details: dict[str, NodeInfo] = {}
         # Panel-only state (not part of the filter): which planet is being
-        # "drilled into" so its missions and nodes appear in the selectors.
-        # Both reset whenever the topic changes or the planet selector clears.
+        # "drilled into" so its nodes appear in the node selector. Resets
+        # whenever the topic changes.
         self._browse_planet: str | None = None
-        self._browse_missions: frozenset[MissionType] = frozenset()
 
     async def open(self, interaction: discord.Interaction) -> None:
         self._subscribed = set(
@@ -217,9 +216,9 @@ class FilterPanel(discord.ui.View):
             self.add_item(planet_select)
             next_row += 1
 
-        # Mission multi-select (per-topic option list) — only for dojoshare;
-        # catalog topics surface missions via the per-planet browse selector.
-        if cfg.missions and cfg.node_mode != "catalog":
+        # Mission multi-select — global allowlist saved into the filter for
+        # all topics that have a non-trivial mission set.
+        if cfg.missions:
             mission_select = discord.ui.Select(
                 placeholder="Mission types allowlist  (none selected = any)",
                 min_values=0,
@@ -286,32 +285,8 @@ class FilterPanel(discord.ui.View):
             next_row += 1
 
             if self._browse_planet:
-                # Row N+1: missions available on the browse planet, pre-filtered
-                # to the topic's relevant set (e.g. fast missions for Fast topics).
-                planet_missions = self._missions_on_planet(self._browse_planet, cfg)
-                if planet_missions:
-                    mission_browse = discord.ui.Select(
-                        placeholder=(
-                            f"Missions on {self._browse_planet}  "
-                            "(none selected = show all)"
-                        ),
-                        min_values=0,
-                        max_values=len(planet_missions),
-                        options=[
-                            discord.SelectOption(
-                                label=mt.value,
-                                value=mt.value,
-                                default=mt in self._browse_missions,
-                            )
-                            for mt in planet_missions
-                        ],
-                        row=next_row,
-                    )
-                    mission_browse.callback = self._on_browse_mission_change
-                    self.add_item(mission_browse)
-                    next_row += 1
-
-                # Row N+2: nodes on the browse planet filtered by browse missions.
+                # Next row: nodes on the browse planet filtered by the global
+                # mission-type allowlist already saved in current_filter.
                 node_options = self._nodes_for_browse_planet(cfg)
                 if node_options:
                     node_select = discord.ui.Select(
@@ -373,7 +348,7 @@ class FilterPanel(discord.ui.View):
                 value=_format_set(self.current_filter.planets),
                 inline=False,
             )
-        if cfg.missions and cfg.node_mode != "catalog":
+        if cfg.missions:
             embed.add_field(
                 name="🎯  Mission types",
                 value=_format_missions(self.current_filter.mission_types),
@@ -387,7 +362,6 @@ class FilterPanel(discord.ui.View):
         async def _cb(interaction: discord.Interaction) -> None:
             self.current_topic = topic
             self._browse_planet = None
-            self._browse_missions = frozenset()
             existing = await self._bot.subscriptions_repo.get_filter(
                 self._user_id, topic.value
             )
@@ -423,17 +397,6 @@ class FilterPanel(discord.ui.View):
     ) -> None:
         values = interaction.data.get("values", [])  # type: ignore[arg-type]
         self._browse_planet = values[0] if values else None
-        self._browse_missions = frozenset()
-        self._rebuild()
-        await interaction.response.edit_message(
-            embed=self._build_embed(), view=self
-        )
-
-    async def _on_browse_mission_change(
-        self, interaction: discord.Interaction
-    ) -> None:
-        raw = interaction.data.get("values", [])  # type: ignore[arg-type]
-        self._browse_missions = frozenset(parse_mission_type(v) for v in raw)
         self._rebuild()
         await interaction.response.edit_message(
             embed=self._build_embed(), view=self
@@ -460,27 +423,6 @@ class FilterPanel(discord.ui.View):
 
     # ---------- helpers ----------
 
-    def _missions_on_planet(
-        self, planet: str, cfg: _TopicConfig
-    ) -> list[MissionType]:
-        """Return the distinct mission types on a planet relevant to this topic.
-
-        Pre-filtered to ``cfg.missions`` (e.g. fast missions for Normal/SP Fast
-        topics) so the user only sees options that can actually trigger a
-        notification. When ``cfg.missions`` is empty all missions are returned.
-        """
-        planet_lc = planet.lower()
-        allowed: frozenset[MissionType] = frozenset(cfg.missions)
-        missions: set[MissionType] = set()
-        for info in self._node_details.values():
-            if info.planet.lower() != planet_lc:
-                continue
-            mt = parse_mission_type(info.mission_type_raw)
-            if allowed and mt not in allowed:
-                continue
-            missions.add(mt)
-        return sorted(missions, key=lambda m: m.value)
-
     def _nodes_for_browse_planet(
         self, cfg: _TopicConfig
     ) -> list[discord.SelectOption]:
@@ -498,9 +440,11 @@ class FilterPanel(discord.ui.View):
             ]
 
         planet_lc = self._browse_planet.lower()
+        # Use the user's saved mission filter when set; fall back to the
+        # topic's default set so the selector is never empty on first open.
         effective_missions: set[str]
-        if self._browse_missions:
-            effective_missions = {mt.value.lower() for mt in self._browse_missions}
+        if self.current_filter.mission_types:
+            effective_missions = {mt.value.lower() for mt in self.current_filter.mission_types}
         elif cfg.missions:
             effective_missions = {mt.value.lower() for mt in cfg.missions}
         else:
