@@ -82,27 +82,18 @@ class FissureRefresher:
     async def _dispatch_notifications(self) -> None:
         """Edge-trigger DMs to subscribers when matching fissures go live.
 
-        Runs after the embed refresh so a failure here doesn't block the
-        visible tracker. Iterates only guilds that have at least one
-        subscription, so cost is bounded by actual users opted in.
+        Subscriptions are global per user, so this is one pass — no per-guild
+        loop, no chance of duplicate DMs from multi-server users. Runs after
+        the embed refresh so a failure here doesn't block the visible tracker.
         """
-        guild_ids = await self._bot.subscriptions_repo.list_subscribed_guilds()
-        if not guild_ids:
+        if not await self._bot.subscriptions_repo.any_subscribers():
             return
-        # Same upstream-cleanup the board does (railjack/requiem dropped).
         all_fissures = [
             f
             for f in await self._bot.data_source.fetch_fissures()
             if not is_railjack(f) and f.era is not Era.REQUIEM
         ]
-        for gid in guild_ids:
-            try:
-                settings = await self._bot.settings_repo.get(gid)
-                await self._bot.notifier.process_guild(
-                    gid, all_fissures, settings.dojoshare_nodes
-                )
-            except Exception:
-                log.exception("notifier failed for guild=%s", gid)
+        await self._bot.notifier.process(all_fissures)
 
     async def _refresh_kind(
         self,

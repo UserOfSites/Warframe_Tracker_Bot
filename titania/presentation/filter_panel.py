@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from titania.domain.mission_type import (
+    DEFAULT_DOJOSHARE_NODES,
     FAST_MISSIONS,
     MissionType,
     parse_mission_type,
@@ -137,26 +138,23 @@ class FilterPanel(discord.ui.View):
       already pins to a single node + mission.
     """
 
-    def __init__(
-        self, bot: "TitaniaBot", guild_id: int, user_id: int
-    ) -> None:
+    def __init__(self, bot: "TitaniaBot", user_id: int) -> None:
         super().__init__(timeout=_PANEL_TIMEOUT_SECONDS)
         self._bot = bot
-        self._guild_id = guild_id
         self._user_id = user_id
         self.current_topic: FissureTopic | None = None
         self.current_filter: SubscriptionFilter = SubscriptionFilter()
         self._subscribed: set[str] = set()
-        self._guild_dojoshare: tuple[str, ...] = ()
+        # Dojoshare node list shown in the multi-select. Sourced from the
+        # bot-wide default since subscriptions aren't guild-scoped.
+        self._dojoshare_nodes: tuple[str, ...] = tuple(
+            sorted(DEFAULT_DOJOSHARE_NODES)
+        )
 
     async def open(self, interaction: discord.Interaction) -> None:
         self._subscribed = set(
-            await self._bot.subscriptions_repo.list_user_topics(
-                self._guild_id, self._user_id
-            )
+            await self._bot.subscriptions_repo.list_user_topics(self._user_id)
         )
-        settings = await self._bot.settings_repo.get(self._guild_id)
-        self._guild_dojoshare = tuple(sorted(settings.dojoshare_nodes))
         self._rebuild()
         await interaction.response.send_message(
             embed=self._build_embed(), view=self, ephemeral=True
@@ -232,18 +230,18 @@ class FilterPanel(discord.ui.View):
 
         # Nodes — multi-select for the small dojoshare list, modal for the
         # open-ended fast-mission node universe.
-        if cfg.node_mode == "select" and self._guild_dojoshare:
+        if cfg.node_mode == "select" and self._dojoshare_nodes:
             node_select = discord.ui.Select(
                 placeholder="Nodes allowlist  (none selected = any)",
                 min_values=0,
-                max_values=len(self._guild_dojoshare),
+                max_values=len(self._dojoshare_nodes),
                 options=[
                     discord.SelectOption(
                         label=n,
                         value=n,
                         default=n in self.current_filter.nodes,
                     )
-                    for n in self._guild_dojoshare
+                    for n in self._dojoshare_nodes
                 ],
                 row=next_row,
             )
@@ -335,7 +333,7 @@ class FilterPanel(discord.ui.View):
         async def _cb(interaction: discord.Interaction) -> None:
             self.current_topic = topic
             existing = await self._bot.subscriptions_repo.get_filter(
-                self._guild_id, self._user_id, topic.value
+                self._user_id, topic.value
             )
             self.current_filter = existing or SubscriptionFilter()
             self._rebuild()
@@ -378,15 +376,14 @@ class FilterPanel(discord.ui.View):
             return
         try:
             await self._bot.subscriptions_repo.update_filter(
-                self._guild_id,
                 self._user_id,
                 self.current_topic.value,
                 self.current_filter,
             )
         except Exception:
             log.exception(
-                "filter update failed guild=%s user=%s topic=%s",
-                self._guild_id, self._user_id, self.current_topic.value,
+                "filter update failed user=%s topic=%s",
+                self._user_id, self.current_topic.value,
             )
             if not interaction.response.is_done():
                 await interaction.response.send_message(

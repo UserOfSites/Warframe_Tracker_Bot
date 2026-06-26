@@ -48,6 +48,7 @@ def _bot(interaction: discord.Interaction) -> "TitaniaBot":
     return interaction.client  # type: ignore[return-value]
 
 
+@app_commands.guild_only()
 class Settings(
     commands.GroupCog,
     name="settings",

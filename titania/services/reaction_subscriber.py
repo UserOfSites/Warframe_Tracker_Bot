@@ -132,12 +132,12 @@ class ReactionSubscriber:
             return
         try:
             await self._bot.subscriptions_repo.subscribe(
-                payload.guild_id, payload.user_id, topic.value
+                payload.user_id, topic.value
             )
         except Exception:
             log.exception(
-                "reaction-subscribe failed guild=%s user=%s topic=%s",
-                payload.guild_id, payload.user_id, topic.value,
+                "reaction-subscribe failed user=%s topic=%s",
+                payload.user_id, topic.value,
             )
 
     async def _strip_foreign_reaction(
@@ -189,12 +189,12 @@ class ReactionSubscriber:
             return
         try:
             await self._bot.subscriptions_repo.unsubscribe(
-                payload.guild_id, payload.user_id, topic.value
+                payload.user_id, topic.value
             )
         except Exception:
             log.exception(
-                "reaction-unsubscribe failed guild=%s user=%s topic=%s",
-                payload.guild_id, payload.user_id, topic.value,
+                "reaction-unsubscribe failed user=%s topic=%s",
+                payload.user_id, topic.value,
             )
 
 

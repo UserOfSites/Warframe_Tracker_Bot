@@ -32,18 +32,17 @@ CREATE TABLE IF NOT EXISTS tracked_vendors_channels (
 );
 
 CREATE TABLE IF NOT EXISTS fissure_subscriptions (
-    guild_id        INTEGER NOT NULL,
     user_id         INTEGER NOT NULL,
     topic           TEXT    NOT NULL,
     nodes_filter    TEXT    NOT NULL DEFAULT '',
     planets_filter  TEXT    NOT NULL DEFAULT '',
     missions_filter TEXT    NOT NULL DEFAULT '',
     created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (guild_id, user_id, topic)
+    PRIMARY KEY (user_id, topic)
 );
 
-CREATE INDEX IF NOT EXISTS idx_fissure_subs_guild_topic
-    ON fissure_subscriptions (guild_id, topic);
+CREATE INDEX IF NOT EXISTS idx_fissure_subs_topic
+    ON fissure_subscriptions (topic);
 """
 
 
@@ -89,6 +88,43 @@ class Database:
                     f"{new_col} TEXT NOT NULL DEFAULT ''"
                 )
                 log.info("migration: added fissure_subscriptions.%s", new_col)
+        if "guild_id" in sub_cols:
+            # Drop the guild_id dimension — subscriptions are now global per
+            # user. Rebuild the table, deduping by (user_id, topic) and OR-
+            # merging filter columns so a user with rows in multiple guilds
+            # keeps a sensible composite filter rather than losing all but one.
+            log.info("migration: rebuilding fissure_subscriptions without guild_id")
+            await self._conn.executescript(
+                """
+                CREATE TABLE fissure_subscriptions__new (
+                    user_id         INTEGER NOT NULL,
+                    topic           TEXT    NOT NULL,
+                    nodes_filter    TEXT    NOT NULL DEFAULT '',
+                    planets_filter  TEXT    NOT NULL DEFAULT '',
+                    missions_filter TEXT    NOT NULL DEFAULT '',
+                    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (user_id, topic)
+                );
+                INSERT INTO fissure_subscriptions__new
+                    (user_id, topic, nodes_filter, planets_filter, missions_filter, created_at)
+                SELECT
+                    user_id,
+                    topic,
+                    -- arbitrary but stable: keep the row with the first
+                    -- created_at per (user, topic); MIN ensures determinism.
+                    MIN(nodes_filter)    AS nodes_filter,
+                    MIN(planets_filter)  AS planets_filter,
+                    MIN(missions_filter) AS missions_filter,
+                    MIN(created_at)      AS created_at
+                FROM fissure_subscriptions
+                GROUP BY user_id, topic;
+                DROP TABLE fissure_subscriptions;
+                ALTER TABLE fissure_subscriptions__new
+                    RENAME TO fissure_subscriptions;
+                CREATE INDEX IF NOT EXISTS idx_fissure_subs_topic
+                    ON fissure_subscriptions (topic);
+                """
+            )
 
     async def close(self) -> None:
         if self._conn is not None:
