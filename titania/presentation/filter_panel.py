@@ -135,6 +135,11 @@ class FilterPanel(discord.ui.View):
         # missions. Loaded once in open(); empty dict means we'll fall back to
         # showing no node controls.
         self._node_details: dict[str, NodeInfo] = {}
+        # Panel-only state (not part of the filter): which planet is being
+        # "drilled into" so its missions and nodes appear in the selectors.
+        # Both reset whenever the topic changes or the planet selector clears.
+        self._browse_planet: str | None = None
+        self._browse_missions: frozenset[MissionType] = frozenset()
 
     async def open(self, interaction: discord.Interaction) -> None:
         self._subscribed = set(
@@ -165,7 +170,8 @@ class FilterPanel(discord.ui.View):
     def _rebuild(self) -> None:
         self.clear_items()
 
-        # Row 0 — topic selector
+        # Row 0 — topic selector + Reset (Reset shares the row because we need
+        # rows 1-4 for the four filter selects; 5 buttons per row is the max).
         for topic in FissureTopic:
             btn = discord.ui.Button(
                 label=_TOPIC_SHORT[topic],
@@ -177,6 +183,16 @@ class FilterPanel(discord.ui.View):
 
         if self.current_topic is None:
             return
+
+        reset_btn = discord.ui.Button(
+            label="Reset",
+            emoji="🧹",
+            style=discord.ButtonStyle.danger,
+            row=0,
+            disabled=self.current_filter.is_unrestricted,
+        )
+        reset_btn.callback = self._on_reset_all
+        self.add_item(reset_btn)
 
         cfg = _TOPIC_CONFIGS[self.current_topic]
         next_row = 1
@@ -201,8 +217,9 @@ class FilterPanel(discord.ui.View):
             self.add_item(planet_select)
             next_row += 1
 
-        # Mission multi-select (per-topic option list)
-        if cfg.missions:
+        # Mission multi-select (per-topic option list) — only for dojoshare;
+        # catalog topics surface missions via the per-planet browse selector.
+        if cfg.missions and cfg.node_mode != "catalog":
             mission_select = discord.ui.Select(
                 placeholder="Mission types allowlist  (none selected = any)",
                 min_values=0,
@@ -222,12 +239,12 @@ class FilterPanel(discord.ui.View):
             next_row += 1
 
         # Nodes — the option set depends on the topic:
-        #   - "select"  : fixed shortlist (dojoshare nodes).
-        #   - "catalog" : derived from the live node catalog, narrowed by the
-        #                 user's planet allowlist AND mission-type allowlist
-        #                 (or the topic's default fast missions if the user
-        #                 hasn't picked any). The user must select at least
-        #                 one planet to surface anything.
+        #   - "select"  : fixed shortlist (dojoshare nodes), single multi-select.
+        #   - "catalog" : two-step browser. A single-select picks ONE planet
+        #                 from the allowlist; the node multi-select below it
+        #                 then shows that planet's nodes (further filtered by
+        #                 the mission allowlist). Other planets' selections
+        #                 are preserved when switching.
         if cfg.node_mode == "select" and self._dojoshare_nodes:
             node_select = discord.ui.Select(
                 placeholder="Nodes allowlist  (none selected = any)",
@@ -247,40 +264,69 @@ class FilterPanel(discord.ui.View):
             self.add_item(node_select)
             next_row += 1
         elif cfg.node_mode == "catalog":
-            candidates = self._candidate_fast_nodes(cfg)
-            if candidates:
-                node_select = discord.ui.Select(
-                    placeholder=(
-                        f"Nodes allowlist  ({len(candidates)} shown, "
-                        f"none = any)"
-                    ),
-                    min_values=0,
-                    max_values=len(candidates),
-                    options=[
-                        discord.SelectOption(
-                            label=n,
-                            value=n,
-                            default=n in self.current_filter.nodes,
-                        )
-                        for n in candidates
-                    ],
-                    row=next_row,
-                )
-                node_select.callback = self._on_node_select_change
-                self.add_item(node_select)
-                next_row += 1
+            # Row N: browse-planet single-select over ALL planets — independent
+            # of the planet allowlist so the user can pick specific nodes from
+            # any planet without having to allow the whole planet.
+            browse_select = discord.ui.Select(
+                placeholder="Browse a planet to pick specific nodes  (optional)",
+                min_values=0,
+                max_values=1,
+                options=[
+                    discord.SelectOption(
+                        label=p,
+                        value=p,
+                        default=p == self._browse_planet,
+                    )
+                    for p in _ALL_PLANETS
+                ],
+                row=next_row,
+            )
+            browse_select.callback = self._on_browse_planet_change
+            self.add_item(browse_select)
+            next_row += 1
 
-        # Reset all filters — disabled when nothing is set so the danger
-        # button doesn't look armed needlessly.
-        reset = discord.ui.Button(
-            label="Reset all filters",
-            emoji="🧹",
-            style=discord.ButtonStyle.danger,
-            row=min(next_row, 4),
-            disabled=self.current_filter.is_unrestricted,
-        )
-        reset.callback = self._on_reset_all
-        self.add_item(reset)
+            if self._browse_planet:
+                # Row N+1: missions available on the browse planet, pre-filtered
+                # to the topic's relevant set (e.g. fast missions for Fast topics).
+                planet_missions = self._missions_on_planet(self._browse_planet, cfg)
+                if planet_missions:
+                    mission_browse = discord.ui.Select(
+                        placeholder=(
+                            f"Missions on {self._browse_planet}  "
+                            "(none selected = show all)"
+                        ),
+                        min_values=0,
+                        max_values=len(planet_missions),
+                        options=[
+                            discord.SelectOption(
+                                label=mt.value,
+                                value=mt.value,
+                                default=mt in self._browse_missions,
+                            )
+                            for mt in planet_missions
+                        ],
+                        row=next_row,
+                    )
+                    mission_browse.callback = self._on_browse_mission_change
+                    self.add_item(mission_browse)
+                    next_row += 1
+
+                # Row N+2: nodes on the browse planet filtered by browse missions.
+                node_options = self._nodes_for_browse_planet(cfg)
+                if node_options:
+                    node_select = discord.ui.Select(
+                        placeholder=(
+                            f"Nodes on {self._browse_planet}  "
+                            f"({len(node_options)} shown)"
+                        ),
+                        min_values=0,
+                        max_values=len(node_options),
+                        options=node_options,
+                        row=next_row,
+                    )
+                    node_select.callback = self._on_browse_node_change
+                    self.add_item(node_select)
+                    next_row += 1
 
     def _build_embed(self) -> discord.Embed:
         if self.current_topic is None:
@@ -312,9 +358,9 @@ class FilterPanel(discord.ui.View):
             )
         if cfg.node_mode != "none":
             node_value = _format_set(self.current_filter.nodes)
-            if cfg.node_mode == "catalog" and not self.current_filter.planets:
+            if cfg.node_mode == "catalog" and not self.current_filter.nodes:
                 node_value += (
-                    "\n_Pick at least one planet below to see node options._"
+                    "\n_Use the planet browser below to add specific nodes._"
                 )
             embed.add_field(
                 name="📍  Nodes",
@@ -327,7 +373,7 @@ class FilterPanel(discord.ui.View):
                 value=_format_set(self.current_filter.planets),
                 inline=False,
             )
-        if cfg.missions:
+        if cfg.missions and cfg.node_mode != "catalog":
             embed.add_field(
                 name="🎯  Mission types",
                 value=_format_missions(self.current_filter.mission_types),
@@ -340,6 +386,8 @@ class FilterPanel(discord.ui.View):
     def _make_topic_callback(self, topic: FissureTopic):
         async def _cb(interaction: discord.Interaction) -> None:
             self.current_topic = topic
+            self._browse_planet = None
+            self._browse_missions = frozenset()
             existing = await self._bot.subscriptions_repo.get_filter(
                 self._user_id, topic.value
             )
@@ -370,56 +418,119 @@ class FilterPanel(discord.ui.View):
         self.current_filter = SubscriptionFilter()
         await self._save_and_refresh(interaction)
 
+    async def _on_browse_planet_change(
+        self, interaction: discord.Interaction
+    ) -> None:
+        values = interaction.data.get("values", [])  # type: ignore[arg-type]
+        self._browse_planet = values[0] if values else None
+        self._browse_missions = frozenset()
+        self._rebuild()
+        await interaction.response.edit_message(
+            embed=self._build_embed(), view=self
+        )
+
+    async def _on_browse_mission_change(
+        self, interaction: discord.Interaction
+    ) -> None:
+        raw = interaction.data.get("values", [])  # type: ignore[arg-type]
+        self._browse_missions = frozenset(parse_mission_type(v) for v in raw)
+        self._rebuild()
+        await interaction.response.edit_message(
+            embed=self._build_embed(), view=self
+        )
+
+    async def _on_browse_node_change(
+        self, interaction: discord.Interaction
+    ) -> None:
+        selected_here = frozenset(
+            interaction.data.get("values", [])  # type: ignore[arg-type]
+        )
+        # Preserve nodes already in the filter from OTHER planets so browsing
+        # planet A doesn't silently erase node selections from planet B.
+        planet_lc = (self._browse_planet or "").lower()
+        other_nodes = frozenset(
+            n for n in self.current_filter.nodes
+            if n not in self._node_details
+            or self._node_details[n].planet.lower() != planet_lc
+        )
+        self.current_filter = replace(
+            self.current_filter, nodes=other_nodes | selected_here
+        )
+        await self._save_and_refresh(interaction)
+
     # ---------- helpers ----------
 
-    def _candidate_fast_nodes(self, cfg: _TopicConfig) -> list[str]:
-        """Build the option set for the fast-topic node multi-select.
+    def _missions_on_planet(
+        self, planet: str, cfg: _TopicConfig
+    ) -> list[MissionType]:
+        """Return the distinct mission types on a planet relevant to this topic.
 
-        Filter:
-          - planet ∈ user's selected planets  (no planets → nothing shown);
-          - mission_type ∈ user's selected missions, or the topic's default
-            fast-mission list when the user hasn't picked any.
-
-        Always include currently-selected nodes (even if outside the current
-        planet/mission scope) so the user can deselect them. Cap at 25, the
-        Discord SelectOption limit.
+        Pre-filtered to ``cfg.missions`` (e.g. fast missions for Normal/SP Fast
+        topics) so the user only sees options that can actually trigger a
+        notification. When ``cfg.missions`` is empty all missions are returned.
         """
-        if not self._node_details or not self.current_filter.planets:
-            # Show whatever's already in the filter so the user can clear
-            # individual entries; otherwise nothing.
-            return sorted(self.current_filter.nodes)[:25]
+        planet_lc = planet.lower()
+        allowed: frozenset[MissionType] = frozenset(cfg.missions)
+        missions: set[MissionType] = set()
+        for info in self._node_details.values():
+            if info.planet.lower() != planet_lc:
+                continue
+            mt = parse_mission_type(info.mission_type_raw)
+            if allowed and mt not in allowed:
+                continue
+            missions.add(mt)
+        return sorted(missions, key=lambda m: m.value)
 
+    def _nodes_for_browse_planet(
+        self, cfg: _TopicConfig
+    ) -> list[discord.SelectOption]:
+        """Select options for nodes on the currently-browsed planet.
+
+        Filtered by ``_browse_missions`` when set; otherwise falls back to the
+        topic's default mission set (``cfg.missions``). Always surfaces already-
+        selected nodes so the user can deselect them even if they fall outside
+        the current scope. Capped at 25 (Discord limit).
+        """
+        if not self._browse_planet or not self._node_details:
+            return [
+                discord.SelectOption(label=n, value=n, default=True)
+                for n in sorted(self.current_filter.nodes)[:25]
+            ]
+
+        planet_lc = self._browse_planet.lower()
         effective_missions: set[str]
-        if self.current_filter.mission_types:
-            effective_missions = {mt.value for mt in self.current_filter.mission_types}
+        if self._browse_missions:
+            effective_missions = {mt.value.lower() for mt in self._browse_missions}
+        elif cfg.missions:
+            effective_missions = {mt.value.lower() for mt in cfg.missions}
         else:
-            effective_missions = {mt.value for mt in cfg.missions}
-
-        # Use a lowercase comparison set for planet/mission since the upstream
-        # casing isn't always stable across endpoints.
-        allowed_planets = {p.lower() for p in self.current_filter.planets}
-        allowed_missions_lc = {m.lower() for m in effective_missions}
+            effective_missions = set()
 
         scoped: list[str] = []
         for info in self._node_details.values():
-            if info.planet.lower() not in allowed_planets:
+            if info.planet.lower() != planet_lc:
                 continue
-            if info.mission_type_raw.lower() not in allowed_missions_lc:
+            if (
+                effective_missions
+                and info.mission_type_raw.lower() not in effective_missions
+            ):
                 continue
             scoped.append(info.name)
         scoped.sort()
 
-        # Already-selected nodes win precedence so the user can always
-        # deselect them, then fill the rest up to 25.
         selected = [n for n in scoped if n in self.current_filter.nodes]
         others = [n for n in scoped if n not in self.current_filter.nodes]
-        merged = list(dict.fromkeys(selected + others))  # de-dup, keep order
-        # Also surface any selected nodes that fell *outside* the scope (rare
-        # but possible after planet/mission changes) so they remain editable.
+        merged = list(dict.fromkeys(selected + others))
         for n in sorted(self.current_filter.nodes):
             if n not in merged:
                 merged.insert(0, n)
-        return merged[:25]
+        merged = merged[:25]
+        return [
+            discord.SelectOption(
+                label=n, value=n, default=n in self.current_filter.nodes
+            )
+            for n in merged
+        ]
 
     async def _save_and_refresh(self, interaction: discord.Interaction) -> None:
         if self.current_topic is None:
