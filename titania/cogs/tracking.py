@@ -22,11 +22,11 @@ class Tracking(commands.Cog):
         description="Auto-update an active-fissures embed in a channel.",
     )
     @app_commands.default_permissions(manage_guild=True)
-    @app_commands.describe(channel="Channel to post the auto-updating embed in.")
+    @app_commands.describe(channel="Channel or thread to post the auto-updating embed in.")
     async def track(
         self,
         interaction: discord.Interaction,
-        channel: discord.TextChannel,
+        channel: discord.TextChannel | discord.Thread,
     ) -> None:
         if interaction.guild_id is None:
             await interaction.response.send_message(
@@ -34,17 +34,23 @@ class Tracking(commands.Cog):
             )
             return
 
-        # Check we can actually post in the requested channel.
+        # Check we can actually post in the requested channel/thread. Threads
+        # inherit ``permissions_for`` from the parent text channel, with an
+        # extra ``send_messages_in_threads`` gate that applies to threads only.
         me = channel.guild.me
         perms = channel.permissions_for(me) if me else None
+        needs_thread_perm = isinstance(channel, discord.Thread)
         if perms is None or not (
-            perms.send_messages
-            and perms.embed_links
+            perms.embed_links
             and perms.add_reactions
             and perms.read_message_history
+            and (perms.send_messages_in_threads if needs_thread_perm else perms.send_messages)
         ):
+            send_label = (
+                "Send Messages in Threads" if needs_thread_perm else "Send Messages"
+            )
             await interaction.response.send_message(
-                f"I need **Send Messages**, **Embed Links**, **Add Reactions**, "
+                f"I need **{send_label}**, **Embed Links**, **Add Reactions**, "
                 f"and **Read Message History** in {channel.mention}.",
                 ephemeral=True,
             )

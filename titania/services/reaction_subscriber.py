@@ -122,10 +122,13 @@ class ReactionSubscriber:
             return  # the bot's own seed reaction
         if payload.guild_id is None:
             return
+        if not await self._is_tracker_message(payload.guild_id, payload.message_id):
+            return
         topic = self._topic_for_emoji(payload.emoji)
         if topic is None:
-            return
-        if not await self._is_tracker_message(payload.guild_id, payload.message_id):
+            # Foreign emoji on a tracker message — silently strip it so the
+            # reaction row stays scoped to the 4 topic icons.
+            await self._strip_foreign_reaction(payload)
             return
         try:
             await self._bot.subscriptions_repo.subscribe(
@@ -136,6 +139,41 @@ class ReactionSubscriber:
                 "reaction-subscribe failed guild=%s user=%s topic=%s",
                 payload.guild_id, payload.user_id, topic.value,
             )
+
+    async def _strip_foreign_reaction(
+        self, payload: discord.RawReactionActionEvent
+    ) -> None:
+        """Remove a non-topic reaction from a tracker message.
+
+        Requires Manage Messages in the channel; without it, the reaction
+        stays and we log a one-line warning. Failures are otherwise swallowed
+        — best-effort cleanup, not a critical path.
+        """
+        try:
+            channel = self._bot.get_channel(payload.channel_id) or await self._bot.fetch_channel(payload.channel_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+        if not isinstance(channel, discord.abc.Messageable):
+            return
+        try:
+            message = await channel.fetch_message(payload.message_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+        user = self._bot.get_user(payload.user_id)
+        if user is None:
+            try:
+                user = await self._bot.fetch_user(payload.user_id)
+            except (discord.NotFound, discord.HTTPException):
+                return
+        try:
+            await message.remove_reaction(payload.emoji, user)
+        except discord.Forbidden:
+            log.info(
+                "missing Manage Messages in channel=%s; cannot strip foreign reaction",
+                payload.channel_id,
+            )
+        except (discord.NotFound, discord.HTTPException) as e:
+            log.warning("strip reaction failed: %s", e)
 
     async def handle_remove(
         self, payload: discord.RawReactionActionEvent
