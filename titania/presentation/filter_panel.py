@@ -10,6 +10,7 @@ from titania.domain.mission_type import (
     MissionType,
     parse_mission_type,
 )
+from titania.domain.node import NodeInfo
 from titania.domain.subscription_filter import SubscriptionFilter
 from titania.domain.topic import FissureTopic, TOPIC_LABELS
 
@@ -76,11 +77,14 @@ _FAST_OPTIONS: tuple[MissionType, ...] = tuple(
 )
 
 _TOPIC_CONFIGS: dict[FissureTopic, _TopicConfig] = {
+    # Fast topics use a dynamic catalog-scoped multi-select: nodes filtered
+    # by the planet and mission-type allowlists the user picks above. Without
+    # those, no nodes show.
     FissureTopic.NORMAL_FAST: _TopicConfig(
-        missions=_FAST_OPTIONS, planets=_ALL_PLANETS, node_mode="modal",
+        missions=_FAST_OPTIONS, planets=_ALL_PLANETS, node_mode="catalog",
     ),
     FissureTopic.SP_FAST: _TopicConfig(
-        missions=_FAST_OPTIONS, planets=_ALL_PLANETS, node_mode="modal",
+        missions=_FAST_OPTIONS, planets=_ALL_PLANETS, node_mode="catalog",
     ),
     FissureTopic.DOJOSHARE: _TopicConfig(
         missions=_DOJOSHARE_MISSIONS, planets=_ALL_PLANETS, node_mode="select",
@@ -97,30 +101,6 @@ def _format_set(values: frozenset[str]) -> str:
 
 def _format_missions(values: frozenset[MissionType]) -> str:
     return ", ".join(sorted(v.value for v in values)) if values else "_any_"
-
-
-class _NodesModal(discord.ui.Modal, title="Edit node allowlist"):
-    """Free-text node editor for fast topics where the node universe is too
-    large for a 25-option multi-select."""
-
-    nodes_input = discord.ui.TextInput(
-        label="Comma-separated node names (blank = any)",
-        placeholder="e.g. Apollodorus, Cervantes, Sui",
-        required=False,
-        style=discord.TextStyle.short,
-        max_length=400,
-    )
-
-    def __init__(self, panel: "FilterPanel", current: frozenset[str]) -> None:
-        super().__init__()
-        self._panel = panel
-        self.nodes_input.default = ", ".join(sorted(current))
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        raw = self.nodes_input.value or ""
-        nodes = frozenset(s.strip() for s in raw.split(",") if s.strip())
-        self._panel.current_filter = replace(self._panel.current_filter, nodes=nodes)
-        await self._panel._save_and_refresh(interaction)
 
 
 class FilterPanel(discord.ui.View):
@@ -150,11 +130,24 @@ class FilterPanel(discord.ui.View):
         self._dojoshare_nodes: tuple[str, ...] = tuple(
             sorted(DEFAULT_DOJOSHARE_NODES)
         )
+        # Full node catalog with per-node planet + mission type — used by the
+        # fast-topic node multi-select to filter as the user picks planets and
+        # missions. Loaded once in open(); empty dict means we'll fall back to
+        # showing no node controls.
+        self._node_details: dict[str, NodeInfo] = {}
 
     async def open(self, interaction: discord.Interaction) -> None:
         self._subscribed = set(
             await self._bot.subscriptions_repo.list_user_topics(self._user_id)
         )
+        try:
+            self._node_details = await self._bot.data_source.fetch_node_details()
+        except Exception:
+            # Best-effort: if the catalog fetch fails, fast-topic nodes just
+            # won't be selectable until the next panel open. The other filters
+            # still work.
+            log.exception("could not load node catalog; fast-node selector disabled")
+            self._node_details = {}
         self._rebuild()
         await interaction.response.send_message(
             embed=self._build_embed(), view=self, ephemeral=True
@@ -228,8 +221,13 @@ class FilterPanel(discord.ui.View):
             self.add_item(mission_select)
             next_row += 1
 
-        # Nodes — multi-select for the small dojoshare list, modal for the
-        # open-ended fast-mission node universe.
+        # Nodes — the option set depends on the topic:
+        #   - "select"  : fixed shortlist (dojoshare nodes).
+        #   - "catalog" : derived from the live node catalog, narrowed by the
+        #                 user's planet allowlist AND mission-type allowlist
+        #                 (or the topic's default fast missions if the user
+        #                 hasn't picked any). The user must select at least
+        #                 one planet to surface anything.
         if cfg.node_mode == "select" and self._dojoshare_nodes:
             node_select = discord.ui.Select(
                 placeholder="Nodes allowlist  (none selected = any)",
@@ -248,24 +246,29 @@ class FilterPanel(discord.ui.View):
             node_select.callback = self._on_node_select_change
             self.add_item(node_select)
             next_row += 1
-        elif cfg.node_mode == "modal":
-            edit_nodes = discord.ui.Button(
-                label="Edit nodes…",
-                emoji="📝",
-                style=discord.ButtonStyle.secondary,
-                row=next_row,
-            )
-            edit_nodes.callback = self._on_edit_nodes
-            self.add_item(edit_nodes)
-            clear_nodes = discord.ui.Button(
-                label="Clear nodes",
-                style=discord.ButtonStyle.secondary,
-                row=next_row,
-                disabled=not self.current_filter.nodes,
-            )
-            clear_nodes.callback = self._on_clear_nodes
-            self.add_item(clear_nodes)
-            next_row += 1
+        elif cfg.node_mode == "catalog":
+            candidates = self._candidate_fast_nodes(cfg)
+            if candidates:
+                node_select = discord.ui.Select(
+                    placeholder=(
+                        f"Nodes allowlist  ({len(candidates)} shown, "
+                        f"none = any)"
+                    ),
+                    min_values=0,
+                    max_values=len(candidates),
+                    options=[
+                        discord.SelectOption(
+                            label=n,
+                            value=n,
+                            default=n in self.current_filter.nodes,
+                        )
+                        for n in candidates
+                    ],
+                    row=next_row,
+                )
+                node_select.callback = self._on_node_select_change
+                self.add_item(node_select)
+                next_row += 1
 
         # Reset all filters — disabled when nothing is set so the danger
         # button doesn't look armed needlessly.
@@ -308,9 +311,14 @@ class FilterPanel(discord.ui.View):
                 "here will auto-subscribe you._"
             )
         if cfg.node_mode != "none":
+            node_value = _format_set(self.current_filter.nodes)
+            if cfg.node_mode == "catalog" and not self.current_filter.planets:
+                node_value += (
+                    "\n_Pick at least one planet below to see node options._"
+                )
             embed.add_field(
                 name="📍  Nodes",
-                value=_format_set(self.current_filter.nodes),
+                value=node_value,
                 inline=False,
             )
         if cfg.planets:
@@ -358,18 +366,60 @@ class FilterPanel(discord.ui.View):
         self.current_filter = replace(self.current_filter, nodes=new)
         await self._save_and_refresh(interaction)
 
-    async def _on_edit_nodes(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_modal(
-            _NodesModal(self, self.current_filter.nodes)
-        )
-
-    async def _on_clear_nodes(self, interaction: discord.Interaction) -> None:
-        self.current_filter = self.current_filter.cleared_nodes()
-        await self._save_and_refresh(interaction)
-
     async def _on_reset_all(self, interaction: discord.Interaction) -> None:
         self.current_filter = SubscriptionFilter()
         await self._save_and_refresh(interaction)
+
+    # ---------- helpers ----------
+
+    def _candidate_fast_nodes(self, cfg: _TopicConfig) -> list[str]:
+        """Build the option set for the fast-topic node multi-select.
+
+        Filter:
+          - planet ∈ user's selected planets  (no planets → nothing shown);
+          - mission_type ∈ user's selected missions, or the topic's default
+            fast-mission list when the user hasn't picked any.
+
+        Always include currently-selected nodes (even if outside the current
+        planet/mission scope) so the user can deselect them. Cap at 25, the
+        Discord SelectOption limit.
+        """
+        if not self._node_details or not self.current_filter.planets:
+            # Show whatever's already in the filter so the user can clear
+            # individual entries; otherwise nothing.
+            return sorted(self.current_filter.nodes)[:25]
+
+        effective_missions: set[str]
+        if self.current_filter.mission_types:
+            effective_missions = {mt.value for mt in self.current_filter.mission_types}
+        else:
+            effective_missions = {mt.value for mt in cfg.missions}
+
+        # Use a lowercase comparison set for planet/mission since the upstream
+        # casing isn't always stable across endpoints.
+        allowed_planets = {p.lower() for p in self.current_filter.planets}
+        allowed_missions_lc = {m.lower() for m in effective_missions}
+
+        scoped: list[str] = []
+        for info in self._node_details.values():
+            if info.planet.lower() not in allowed_planets:
+                continue
+            if info.mission_type_raw.lower() not in allowed_missions_lc:
+                continue
+            scoped.append(info.name)
+        scoped.sort()
+
+        # Already-selected nodes win precedence so the user can always
+        # deselect them, then fill the rest up to 25.
+        selected = [n for n in scoped if n in self.current_filter.nodes]
+        others = [n for n in scoped if n not in self.current_filter.nodes]
+        merged = list(dict.fromkeys(selected + others))  # de-dup, keep order
+        # Also surface any selected nodes that fell *outside* the scope (rare
+        # but possible after planet/mission changes) so they remain editable.
+        for n in sorted(self.current_filter.nodes):
+            if n not in merged:
+                merged.insert(0, n)
+        return merged[:25]
 
     async def _save_and_refresh(self, interaction: discord.Interaction) -> None:
         if self.current_topic is None:

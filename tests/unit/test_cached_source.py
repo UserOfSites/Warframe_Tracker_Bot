@@ -31,6 +31,13 @@ class _StubSource:
         self.node_calls += 1
         return frozenset({"Hepit", "Ukko"})
 
+    async def fetch_node_details(self) -> dict:
+        from titania.domain.node import NodeInfo
+        return {
+            "Hepit": NodeInfo(name="Hepit", planet="Void", mission_type_raw="Capture"),
+            "Ukko":  NodeInfo(name="Ukko",  planet="Void", mission_type_raw="Capture"),
+        }
+
     async def fetch_void_trader(self) -> dict:
         return {"inventory": []}
 

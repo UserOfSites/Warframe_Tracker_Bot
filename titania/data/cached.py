@@ -4,6 +4,7 @@ from typing import Any
 
 from titania.data.source import WarframeDataSource
 from titania.domain.fissure import Fissure
+from titania.domain.node import NodeInfo
 
 
 class CachedDataSource:
@@ -25,8 +26,11 @@ class CachedDataSource:
         self._fissures_loaded_at: float = 0.0
         self._nodes: frozenset[str] | None = None
         self._nodes_loaded_at: float = 0.0
+        self._node_details: dict[str, NodeInfo] | None = None
+        self._node_details_loaded_at: float = 0.0
         self._fissures_lock = asyncio.Lock()
         self._nodes_lock = asyncio.Lock()
+        self._node_details_lock = asyncio.Lock()
 
     async def fetch_fissures(self) -> list[Fissure]:
         now = time.monotonic()
@@ -52,6 +56,24 @@ class CachedDataSource:
             self._nodes = await self._inner.fetch_node_catalog()
             self._nodes_loaded_at = time.monotonic()
             return self._nodes
+
+    async def fetch_node_details(self) -> dict[str, NodeInfo]:
+        now = time.monotonic()
+        if (
+            self._node_details is not None
+            and (now - self._node_details_loaded_at) < self._NODE_CATALOG_TTL
+        ):
+            return dict(self._node_details)
+        async with self._node_details_lock:
+            now = time.monotonic()
+            if (
+                self._node_details is not None
+                and (now - self._node_details_loaded_at) < self._NODE_CATALOG_TTL
+            ):
+                return dict(self._node_details)
+            self._node_details = await self._inner.fetch_node_details()
+            self._node_details_loaded_at = time.monotonic()
+            return dict(self._node_details)
 
     async def fetch_void_trader(self) -> dict[str, Any]:
         # Delegated as-is — BaroService's per-visit cache already protects

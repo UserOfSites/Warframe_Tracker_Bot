@@ -21,8 +21,9 @@ import logging
 import httpx
 
 from titania.data.warframestat.adapters import adapt_fissures
-from titania.data.warframestat.source import _bare_node
+from titania.data.warframestat.source import _bare_node, _split_node_value
 from titania.domain.fissure import Fissure
+from titania.domain.node import NodeInfo
 
 log = logging.getLogger(__name__)
 
@@ -69,6 +70,25 @@ class AggregateSource:
             and isinstance(entry.get("value"), str)
             and "(" in entry["value"]
         )
+
+    async def fetch_node_details(self) -> dict[str, NodeInfo]:
+        url = f"{self._base_url}/solnodes"
+        resp = await self._client.get(url)
+        resp.raise_for_status()
+        payload = resp.json()
+        out: dict[str, NodeInfo] = {}
+        for key, entry in payload.items():
+            if not (key.startswith("SolNode") and isinstance(entry, dict)):
+                continue
+            value = entry.get("value")
+            if not (isinstance(value, str) and "(" in value):
+                continue
+            name, planet = _split_node_value(value)
+            mt_raw = entry.get("type")
+            if not isinstance(mt_raw, str):
+                mt_raw = ""
+            out[name] = NodeInfo(name=name, planet=planet, mission_type_raw=mt_raw)
+        return out
 
     async def aclose(self) -> None:
         if self._owns_client:

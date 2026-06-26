@@ -1,6 +1,7 @@
 from typing import Any, Protocol, runtime_checkable
 
 from titania.domain.fissure import Fissure
+from titania.domain.node import NodeInfo
 
 
 @runtime_checkable
@@ -17,6 +18,12 @@ class WarframeDataSource(Protocol):
     async def fetch_node_catalog(self) -> frozenset[str]:
         """Bare node names (no planet suffix) of every regular mission node.
         Used for autocomplete and validation in `/settings` commands."""
+        ...
+
+    async def fetch_node_details(self) -> dict[str, NodeInfo]:
+        """``{bare_node_name: NodeInfo(name, planet, mission_type_raw)}`` for
+        every regular mission node. Used by the filter panel to populate
+        per-(planet, mission_type) node multi-selects."""
         ...
 
     async def fetch_void_trader(self) -> dict[str, Any]:

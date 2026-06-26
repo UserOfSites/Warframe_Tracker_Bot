@@ -27,11 +27,20 @@ class Notifications(commands.Cog):
     def __init__(self, bot: "TitaniaBot") -> None:
         self.bot = bot
 
+    # Discord 2024 context model: by default, slash commands appear in
+    # guilds and DMs sharing a server with the bot. We explicitly opt out of
+    # guild context and into DMs (both bot DMs and the user's private channels)
+    # so the command is only offered in personal chat. ``allowed_installs``
+    # keeps the standard guild-install — no user-install required.
+    @app_commands.allowed_contexts(guilds=False, dms=True, private_channels=True)
+    @app_commands.allowed_installs(guilds=True, users=False)
     @app_commands.command(
         name="notifications",
         description="Open the visual filter panel for your fissure subscriptions (DM only).",
     )
     async def notifications(self, interaction: discord.Interaction) -> None:
+        # Defensive: if Discord ever loosens context filtering, we still
+        # refuse server invocations.
         if interaction.guild_id is not None:
             await interaction.response.send_message(
                 "These are personal preferences — DM me and run `/notifications` "

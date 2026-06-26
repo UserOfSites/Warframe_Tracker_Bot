@@ -3,6 +3,7 @@ from importlib import resources
 
 from titania.data.warframestat.adapters import adapt_fissures
 from titania.domain.fissure import Fissure
+from titania.domain.node import NodeInfo
 
 
 class InMemoryFakeSource:
@@ -48,6 +49,18 @@ class InMemoryFakeSource:
         nodes |= set(DEFAULT_DOJOSHARE_NODES)
         nodes |= {"Hepit", "Ukko", "Acheron", "Augustus", "Adaro", "Hydron", "Helene"}
         return frozenset(nodes)
+
+    async def fetch_node_details(self) -> dict[str, NodeInfo]:
+        # Stand-in for tests: synthesize (planet, mission_type) from the
+        # fixture fissures themselves. Anything not in the fixture comes back
+        # with empty planet/mission_type — good enough for unit tests; the
+        # filter panel's UI is exercised against real upstream in deployment.
+        out: dict[str, NodeInfo] = {}
+        for f in self._fissures:
+            out[f.node] = NodeInfo(
+                name=f.node, planet=f.planet, mission_type_raw=f.mission_type.value,
+            )
+        return out
 
     async def aclose(self) -> None:
         return None
