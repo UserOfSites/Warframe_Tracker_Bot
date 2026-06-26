@@ -23,11 +23,14 @@ class MissionType(StrEnum):
     OTHER = "Other"
 
 
-# Spy and Rescue are intentionally excluded — short but objective-gated.
+# "Fast" = missions a relic farmer completes quickly enough that the relic
+# refresh cadence outpaces the run. Rescue is included because the objective
+# is fast in practice once you have the rescue target's location.
 FAST_MISSIONS: frozenset[MissionType] = frozenset({
     MissionType.EXTERMINATE,
     MissionType.SABOTAGE,
     MissionType.CAPTURE,
+    MissionType.RESCUE,
 })
 
 

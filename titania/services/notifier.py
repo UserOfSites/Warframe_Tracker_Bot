@@ -68,22 +68,30 @@ class FissureNotifier:
         topic: FissureTopic,
         new_fissures: list[Fissure],
     ) -> None:
-        user_ids = await self._bot.subscriptions_repo.list_subscribers(
+        subs = await self._bot.subscriptions_repo.list_subscribers_with_filters(
             guild_id, topic.value
         )
-        if not user_ids:
+        if not subs:
             return
         guild = self._bot.get_guild(guild_id)
         guild_name = guild.name if guild is not None else None
         log.info(
             "notifying %d subscriber(s) for guild=%s topic=%s (%d new fissure(s))",
-            len(user_ids), guild_id, topic.value, len(new_fissures),
+            len(subs), guild_id, topic.value, len(new_fissures),
         )
+
+        async def _dispatch(user_id: int, sub_filter) -> None:
+            personal = (
+                new_fissures
+                if sub_filter.is_unrestricted
+                else [f for f in new_fissures if sub_filter.matches(f)]
+            )
+            if not personal:
+                return
+            await self._dm_one_user(user_id, topic, personal, guild_name)
+
         await asyncio.gather(
-            *(
-                self._dm_one_user(uid, topic, new_fissures, guild_name)
-                for uid in user_ids
-            ),
+            *(_dispatch(uid, f) for uid, f in subs),
             return_exceptions=True,
         )
 

@@ -15,7 +15,7 @@ class Config(BaseSettings):
     fissure_cache_ttl: int = Field(30, alias="FISSURE_CACHE_TTL")
     default_locale: str = Field("en", alias="DEFAULT_LOCALE")
     default_fast_missions: str = Field(
-        "Exterminate,Sabotage,Capture", alias="DEFAULT_FAST_MISSIONS"
+        "Exterminate,Sabotage,Capture,Rescue", alias="DEFAULT_FAST_MISSIONS"
     )
     default_dojoshare_nodes: str = Field(
         "Draco,Casta,Nimus,Mot,Ani,Elara,Io,Stephano,Circulus,Yuvarium",

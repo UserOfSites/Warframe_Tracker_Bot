@@ -29,6 +29,7 @@ INITIAL_COGS = (
     "titania.cogs.settings",
     "titania.cogs.tracking",
     "titania.cogs.vendors",
+    "titania.cogs.notifications",
 )
 
 

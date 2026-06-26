@@ -10,7 +10,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS guild_settings (
     guild_id              INTEGER PRIMARY KEY,
     locale                TEXT    NOT NULL DEFAULT 'en',
-    allowed_mission_types TEXT    NOT NULL DEFAULT 'Exterminate,Sabotage,Capture',
+    allowed_mission_types TEXT    NOT NULL DEFAULT 'Exterminate,Sabotage,Capture,Rescue',
     blocked_nodes         TEXT    NOT NULL DEFAULT '',
     pinned_nodes          TEXT    NOT NULL DEFAULT '',
     dojoshare_nodes       TEXT    NOT NULL DEFAULT 'Draco,Casta,Nimus,Mot,Ani,Elara,Io,Stephano,Circulus,Yuvarium',
@@ -32,10 +32,13 @@ CREATE TABLE IF NOT EXISTS tracked_vendors_channels (
 );
 
 CREATE TABLE IF NOT EXISTS fissure_subscriptions (
-    guild_id   INTEGER NOT NULL,
-    user_id    INTEGER NOT NULL,
-    topic      TEXT    NOT NULL,
-    created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+    guild_id        INTEGER NOT NULL,
+    user_id         INTEGER NOT NULL,
+    topic           TEXT    NOT NULL,
+    nodes_filter    TEXT    NOT NULL DEFAULT '',
+    planets_filter  TEXT    NOT NULL DEFAULT '',
+    missions_filter TEXT    NOT NULL DEFAULT '',
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (guild_id, user_id, topic)
 );
 
@@ -68,13 +71,24 @@ class Database:
         SQLite doesn't support `ADD COLUMN IF NOT EXISTS`, so we introspect."""
         assert self._conn is not None
         async with self._conn.execute("PRAGMA table_info(guild_settings)") as cur:
-            cols = {row[1] async for row in cur}  # row[1] = column name
+            cols = {row[1] async for row in cur}
         if "pinned_nodes" not in cols:
             await self._conn.execute(
                 "ALTER TABLE guild_settings ADD COLUMN "
                 "pinned_nodes TEXT NOT NULL DEFAULT ''"
             )
             log.info("migration: added guild_settings.pinned_nodes")
+        async with self._conn.execute(
+            "PRAGMA table_info(fissure_subscriptions)"
+        ) as cur:
+            sub_cols = {row[1] async for row in cur}
+        for new_col in ("nodes_filter", "planets_filter", "missions_filter"):
+            if new_col not in sub_cols:
+                await self._conn.execute(
+                    f"ALTER TABLE fissure_subscriptions ADD COLUMN "
+                    f"{new_col} TEXT NOT NULL DEFAULT ''"
+                )
+                log.info("migration: added fissure_subscriptions.%s", new_col)
 
     async def close(self) -> None:
         if self._conn is not None:
