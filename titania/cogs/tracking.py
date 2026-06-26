@@ -23,7 +23,7 @@ class Tracking(commands.Cog):
     )
     @app_commands.default_permissions(manage_guild=True)
     @app_commands.describe(channel="Channel or thread to post the auto-updating embed in.")
-    async def track(
+    async def track(  # noqa: D401  (error handler attached below)
         self,
         interaction: discord.Interaction,
         channel: discord.TextChannel | discord.Thread,
@@ -84,6 +84,39 @@ class Tracking(commands.Cog):
             f"The embed will refresh every ~{int(self.bot.config.fissure_cache_ttl)}s.",
             ephemeral=True,
         )
+
+    @track.error
+    async def _track_error(
+        self,
+        interaction: discord.Interaction,
+        error: app_commands.AppCommandError,
+    ) -> None:
+        """Friendlier message for the most common /track failure mode.
+
+        ``TransformerError`` on a channel parameter almost always means the
+        bot couldn't promote the partial channel from the interaction payload
+        to a real `TextChannel`/`Thread` — usually because it lacks View
+        Channel permission there. The default error is opaque ("Failed to
+        convert X to TextChannel or Thread"), so we translate it.
+        """
+        if isinstance(error, app_commands.TransformerError):
+            value_name = getattr(error.value, "name", str(error.value))
+            send = (
+                interaction.followup.send
+                if interaction.response.is_done()
+                else interaction.response.send_message
+            )
+            await send(
+                f"I can't access **{value_name}**. Most common cause: I don't "
+                f"have **View Channel** permission on it.\n\n"
+                f"Fix: open that channel → **Edit Channel** → **Permissions** "
+                f"→ allow the bot (or its role) **View Channel** (and **Read "
+                f"Message History**). Then try `/track` again.",
+                ephemeral=True,
+            )
+            return
+        # Re-raise anything else so the global handler still logs it.
+        raise error
 
     @app_commands.command(
         name="untrack",
