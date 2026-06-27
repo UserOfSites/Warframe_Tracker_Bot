@@ -116,12 +116,22 @@ def test_mission_uses_dash_separator_between_type_and_node(now, en, registry):
     assert "Exterminate — Teshub (Void)" in desc
 
 
-def test_time_is_rendered_as_inline_code_chip(now, en, registry):
+def test_time_is_rendered_as_discord_native_relative_timestamp(now, en, registry):
+    """The countdown column uses Discord's native ``<t:UNIX:R>`` token. This
+    renders legibly on every client (the previous inline-code form looked
+    white-on-white on the mobile app) AND updates client-side, freeing the
+    refresher from per-tick message edits just to tick the clock."""
     embed = build_fissure_embed(_board(now), en, registry)
     desc = embed.description or ""
-    assert "`in 22m`" in desc
-    assert "`in 1h 14m`" in desc
-    assert "`expired`" in desc
+    # Three fissures expire at known absolute timestamps; the embed should
+    # carry each one verbatim as a Discord relative-time token.
+    expected_unix = [
+        int((now + timedelta(minutes=22)).timestamp()),
+        int((now + timedelta(hours=1, minutes=14)).timestamp()),
+        int((now + timedelta(seconds=-1)).timestamp()),
+    ]
+    for ts in expected_unix:
+        assert f"<t:{ts}:R>" in desc
 
 
 def test_next_resets_split_into_two_inline_fields(now, en, registry):

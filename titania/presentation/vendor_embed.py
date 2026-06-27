@@ -78,19 +78,21 @@ def _render_baro_header(
     board: BaroBoard,
     translator: Translator,
 ) -> str:
+    # Native Discord relative timestamps so the countdown stays readable on
+    # mobile (the backtick form rendered white-on-white in the official app)
+    # and updates client-side without us editing the message.
     state = board.state
-    now = datetime.now(timezone.utc)
     if not state.is_present:
-        eta = humanize_remaining(state.activation - now, translator)
+        arrives = f"<t:{int(state.activation.timestamp())}:R>"
         return (
             f"**{state.character}**\n"
             f"📍 {state.location}\n"
-            f"⏳ Arrives `{eta}`"
+            f"⏳ Arrives {arrives}"
         )
-    leaves_in = humanize_remaining(state.expiry - now, translator)
+    leaves = f"<t:{int(state.expiry.timestamp())}:R>"
     return (
         f"**{state.character}** — here now\n"
-        f"📍 {state.location}  ·  Leaves `{leaves_in}`"
+        f"📍 {state.location}  ·  Leaves {leaves}"
     )
 
 

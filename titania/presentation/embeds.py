@@ -62,11 +62,15 @@ def _render_fissure_row(
     marker = _era_marker(f.era, f.is_steel_path, registry)
     quality = _quality_marker(f.node, excellent_nodes, good_nodes)
     location = f"{f.node} ({f.planet})" if f.planet else f.node
-    eta = humanize_remaining(f.expires_at - now, translator)
+    # Native Discord relative timestamp — readable on every platform (the
+    # backtick-wrapped string we used before rendered white-on-white on the
+    # mobile client) AND auto-updates client-side so the refresher loop
+    # doesn't need to edit the message just to tick the countdown.
+    ts = f"<t:{int(f.expires_at.timestamp())}:R>"
     return (
         f"{quality}{marker} **{f.era.value}**{_COL_GAP}"
         f"{f.mission_type.value} — {location}{_COL_GAP}"
-        f"`{eta}`"
+        f"{ts}"
     )
 
 
@@ -105,8 +109,8 @@ def _render_resets_block(
     lines = []
     for r in resets:
         marker = _era_marker(r.era, False, registry)
-        eta = humanize_remaining(r.expires_at - now, translator)
-        lines.append(f"{marker} **{r.era.value}**{_COL_GAP}`{eta}`")
+        ts = f"<t:{int(r.expires_at.timestamp())}:R>"
+        lines.append(f"{marker} **{r.era.value}**{_COL_GAP}{ts}")
     return "\n".join(lines)
 
 
