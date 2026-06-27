@@ -24,7 +24,11 @@ def _short_credits(c: int) -> str:
 
 
 def _cost_chip(item: EnrichedBaroItem, registry: EmojiRegistry) -> str:
-    """Compact `<emoji>525 <emoji>175k` for an inventory item."""
+    """Compact ``<emoji>525 | <emoji>175k`` for an inventory item.
+
+    The pipe-separator matches the requested two-column row layout where
+    rows look like ``Ducats | Credits | Last seen``.
+    """
     parts = []
     if item.ducats:
         ducat_emoji = registry.get("ducats", "")
@@ -32,7 +36,7 @@ def _cost_chip(item: EnrichedBaroItem, registry: EmojiRegistry) -> str:
     if item.credits:
         credit_emoji = registry.get("credits", "")
         parts.append(f"{credit_emoji}{_short_credits(item.credits)}".strip())
-    return " ".join(parts) if parts else "—"
+    return " | ".join(parts) if parts else "—"
 
 
 _HISTORY_TYPE_PREFIXES = ("Weapon", "Mod ", "Primed Mod ")
@@ -96,45 +100,70 @@ def _render_baro_header(
     )
 
 
-def _render_inventory_lines(
+def _render_inventory_blocks(
     board: BaroBoard,
     registry: EmojiRegistry,
     item_icons: dict[str, str],
 ) -> list[str]:
-    """One compact line per item, suitable for a multi-column grid layout.
+    """Per-item blocks for the two-column layout.
 
-    Weapons, mods, and relics carry a "last seen X ago" chip — the rotation
-    history is what shoppers actually care about for those. Cosmetics and
-    decorations get a clean name+cost line, since "first appearance" /
-    "unknown" labels on novelty items are noise.
+    - Items with history (weapons, mods, relics) render across **two lines**:
+      ``{icon} **Name**`` then ``ducats | credits | last seen``.
+    - Cosmetics / decorations stay on **one line**: ``{icon} **Name** |
+      ducats | credits``. The lack of last-seen makes the second row pointless
+      for them.
+
+    Each block is one element in the returned list — the chunker treats them
+    atomically so a block never gets split across two columns.
     """
     now = datetime.now(timezone.utc)
-    lines: list[str] = []
+    blocks: list[str] = []
     for item in board.enriched_inventory:
         icon = item_icons.get(item.image_name or "", "")
         prefix = f"{icon} " if icon else "• "
         cost = _cost_chip(item, registry)
         if _shows_history(item):
             when = _when_chip(item, now)
-            lines.append(f"{prefix}**{item.name}** {cost} · {when}")
+            blocks.append(f"{prefix}**{item.name}**\n{cost} | {when}")
         else:
-            lines.append(f"{prefix}**{item.name}** {cost}")
-    return lines
+            blocks.append(f"{prefix}**{item.name}** | {cost}")
+    return blocks
 
 
-def _chunk_into_fields(lines: list[str], limit: int) -> list[str]:
-    """Pack item lines into field values ≤ `limit` chars, joined by newline."""
+def _split_blocks_for_two_columns(
+    blocks: list[str],
+) -> tuple[list[str], list[str]]:
+    """Distribute blocks into left/right columns balanced by character count.
+    Goes block-by-block in order, filling the left column until it's at
+    least half the total, then dropping the rest into the right column."""
+    total = sum(len(b) for b in blocks) + max(len(blocks) - 1, 0)
+    target = total // 2
+    left: list[str] = []
+    right: list[str] = []
+    running = 0
+    for block in blocks:
+        if running < target:
+            left.append(block)
+            running += len(block) + 1  # +1 for the join newline
+        else:
+            right.append(block)
+    return left, right
+
+
+def _chunk_into_fields(blocks: list[str], limit: int) -> list[str]:
+    """Pack blocks into field values ≤ ``limit`` chars, joined by newline.
+    Each block is atomic — never split across chunks."""
     fields: list[str] = []
     current: list[str] = []
     current_len = 0
-    for line in lines:
-        added = len(line) + (1 if current else 0)
+    for block in blocks:
+        added = len(block) + (1 if current else 0)
         if current and current_len + added > limit:
             fields.append("\n".join(current))
-            current = [line]
-            current_len = len(line)
+            current = [block]
+            current_len = len(block)
         else:
-            current.append(line)
+            current.append(block)
             current_len += added
     if current:
         fields.append("\n".join(current))
@@ -150,11 +179,12 @@ def build_vendors_embed(
     """Currently single-vendor (Baro). Designed for new sections (Teshin,
     Varzia, …) to be appended as the project grows, all in one embed.
 
-    Inventory renders as a multi-column grid: items packed into
-    ``inline=True`` fields, which Discord lays out side-by-side (~3 per row
-    on desktop). ``item_icons`` is a snapshot of {image_name: discord_emoji_markup}
-    produced by the dynamic per-item uploader; missing entries render with a
-    bullet prefix instead.
+    Inventory renders as a **two-column** grid of ``inline=True`` fields.
+    Items with a history chip (weapons, mods, relics) take two lines per
+    block; cosmetics take one. If the inventory overflows the per-field
+    1024-char cap, we emit multiple (left, right, spacer) triplets — the
+    ``"​"`` spacer fills Discord's third inline slot so each row keeps
+    rendering as exactly two visible columns instead of three.
     """
     embed = discord.Embed(
         title="Vendors",
@@ -163,14 +193,32 @@ def build_vendors_embed(
     )
     embed.description = _render_baro_header(board, translator)
     if board.state.is_present:
-        lines = _render_inventory_lines(board, registry, item_icons or {})
-        for i, value in enumerate(
-            _chunk_into_fields(lines, _FIELD_VALUE_LIMIT)
-        ):
+        blocks = _render_inventory_blocks(board, registry, item_icons or {})
+        left_blocks, right_blocks = _split_blocks_for_two_columns(blocks)
+        left_chunks = _chunk_into_fields(left_blocks, _FIELD_VALUE_LIMIT)
+        right_chunks = _chunk_into_fields(right_blocks, _FIELD_VALUE_LIMIT)
+        n_rows = max(len(left_chunks), len(right_chunks))
+        needs_spacer = n_rows > 1
+        for i in range(n_rows):
+            left_value = left_chunks[i] if i < len(left_chunks) else _INVENTORY_FIELD_CONT
+            right_value = right_chunks[i] if i < len(right_chunks) else _INVENTORY_FIELD_CONT
             embed.add_field(
                 name=_INVENTORY_FIELD_NAME if i == 0 else _INVENTORY_FIELD_CONT,
-                value=value,
-                inline=False,
+                value=left_value,
+                inline=True,
             )
+            embed.add_field(
+                name=_INVENTORY_FIELD_CONT,
+                value=right_value,
+                inline=True,
+            )
+            if needs_spacer:
+                # Force the row to consume all 3 inline slots so Discord
+                # doesn't pack a fourth field into the same row.
+                embed.add_field(
+                    name=_INVENTORY_FIELD_CONT,
+                    value=_INVENTORY_FIELD_CONT,
+                    inline=True,
+                )
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed
