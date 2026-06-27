@@ -105,13 +105,12 @@ def _render_inventory_blocks(
     registry: EmojiRegistry,
     item_icons: dict[str, str],
 ) -> list[str]:
-    """Per-item blocks for the two-column layout.
-
-    - Items with history (weapons, mods, relics) render across **two lines**:
-      ``{icon} **Name**`` then ``ducats | credits | last seen``.
-    - Cosmetics / decorations stay on **one line**: ``{icon} **Name** |
-      ducats | credits``. The lack of last-seen makes the second row pointless
-      for them.
+    """Per-item blocks for the two-column layout — **two lines per item**:
+    ``{icon} **Name**`` on top, then ``ducats | credits`` (with ``| last
+    seen`` appended for weapons / mods / relics). All items use the same
+    two-line shape so Discord can't word-wrap the stats line at an awkward
+    spot — the column width changes how each line *fits*, but the line break
+    between name and stats is hard-coded.
 
     Each block is one element in the returned list — the chunker treats them
     atomically so a block never gets split across two columns.
@@ -124,9 +123,10 @@ def _render_inventory_blocks(
         cost = _cost_chip(item, registry)
         if _shows_history(item):
             when = _when_chip(item, now)
-            blocks.append(f"{prefix}**{item.name}**\n{cost} | {when}")
+            stats = f"{cost} | {when}"
         else:
-            blocks.append(f"{prefix}**{item.name}** | {cost}")
+            stats = cost
+        blocks.append(f"{prefix}**{item.name}**\n{stats}")
     return blocks
 
 
