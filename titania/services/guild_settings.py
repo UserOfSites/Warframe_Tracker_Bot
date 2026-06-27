@@ -12,6 +12,13 @@ class GuildSettings:
     pinned_nodes: frozenset[str]
     dojoshare_nodes: frozenset[str]
     locale: str
+    # Per-guild node "quality" markers visualised on the tracker. A node can be
+    # in at most one of these sets (the panel keeps them mutually exclusive at
+    # write time; the renderer prefers excellent if both for defensiveness).
+    # Empty = no decoration — the node is rendered plain. Defaulted so older
+    # call sites don't need updating to pass empty sets.
+    excellent_nodes: frozenset[str] = frozenset()
+    good_nodes: frozenset[str] = frozenset()
 
     @classmethod
     def from_config(cls, config: Config) -> "GuildSettings":
@@ -22,6 +29,8 @@ class GuildSettings:
             blocked_nodes=frozenset(),
             pinned_nodes=frozenset(),
             dojoshare_nodes=config.dojoshare_nodes(),
+            excellent_nodes=frozenset(),
+            good_nodes=frozenset(),
             locale=config.default_locale,
         )
 

@@ -27,6 +27,7 @@ class _Category(StrEnum):
     DOJOSHARE = "dojoshare"
     PINNED = "pinned"
     BLOCKED = "blocked"
+    QUALITY = "quality"
 
 
 _CATEGORY_LABELS: dict[_Category, str] = {
@@ -34,6 +35,7 @@ _CATEGORY_LABELS: dict[_Category, str] = {
     _Category.DOJOSHARE: "Dojoshare",
     _Category.PINNED: "Pinned",
     _Category.BLOCKED: "Blocked",
+    _Category.QUALITY: "Quality",
 }
 
 _CATEGORY_DESCRIPTIONS: dict[_Category, str] = {
@@ -52,7 +54,17 @@ _CATEGORY_DESCRIPTIONS: dict[_Category, str] = {
     _Category.BLOCKED: (
         "Nodes that never appear on the tracker, regardless of other rules."
     ),
+    _Category.QUALITY: (
+        "Mark nodes with a quality star on the tracker. 🌟 = excellent "
+        "(very good), ⭐ = good. Nothing = plain. Pick a star level below, "
+        "then add nodes."
+    ),
 }
+
+
+# Quality-tier selector values (used in the Quality category's row 1).
+_STAR_EXCELLENT = "excellent"
+_STAR_GOOD = "good"
 
 _ALL_PLANETS: tuple[str, ...] = (
     "Mercury", "Venus", "Earth", "Lua", "Mars", "Phobos", "Deimos", "Ceres",
@@ -113,6 +125,9 @@ class SettingsPanel(discord.ui.View):
         self.current_category: _Category | None = None
         # Panel-only state: which planet's nodes the user is browsing.
         self._browse_planet: str | None = None
+        # For the Quality category, which star tier the user is editing.
+        # ``_STAR_EXCELLENT`` / ``_STAR_GOOD`` / ``None`` (not picked yet).
+        self._quality_tier: str | None = None
         self._node_details: dict[str, NodeInfo] = {}
 
     async def open(self, interaction: discord.Interaction) -> None:
@@ -137,7 +152,8 @@ class SettingsPanel(discord.ui.View):
     def _rebuild(self) -> None:
         self.clear_items()
 
-        # Row 0 — category buttons + Reset
+        # Row 0 — five category buttons. We dropped Reset from row 0 (no room
+        # for a 6th button); it now lives on row 4 once a category is active.
         for cat in _Category:
             btn = discord.ui.Button(
                 label=_CATEGORY_LABELS[cat],
@@ -147,21 +163,10 @@ class SettingsPanel(discord.ui.View):
             btn.callback = self._make_category_callback(cat)
             self.add_item(btn)
 
-        if self.current_category is not None:
-            reset_btn = discord.ui.Button(
-                label="Reset",
-                emoji="🧹",
-                style=discord.ButtonStyle.danger,
-                row=0,
-            )
-            reset_btn.callback = self._on_reset_category
-            self.add_item(reset_btn)
-
         if self.current_category is None or self._settings is None:
             return
 
         if self.current_category is _Category.MISSIONS:
-            # Single mission multi-select.
             mission_select = discord.ui.Select(
                 placeholder="Allowed mission types  (server-wide tracker filter)",
                 min_values=0,
@@ -178,9 +183,43 @@ class SettingsPanel(discord.ui.View):
             )
             mission_select.callback = self._on_missions_change
             self.add_item(mission_select)
+            self._add_reset_button(row=4)
+            return
+
+        if self.current_category is _Category.QUALITY:
+            # Quality has an extra row before the planet browser: the star
+            # tier selector. The browse-planet/node selects only appear once
+            # the user has picked a tier.
+            tier_select = discord.ui.Select(
+                placeholder="Star tier  (pick one)",
+                min_values=0,
+                max_values=1,
+                options=[
+                    discord.SelectOption(
+                        label="🌟 Excellent  — very good",
+                        value=_STAR_EXCELLENT,
+                        default=self._quality_tier == _STAR_EXCELLENT,
+                    ),
+                    discord.SelectOption(
+                        label="⭐ Good  — quite good",
+                        value=_STAR_GOOD,
+                        default=self._quality_tier == _STAR_GOOD,
+                    ),
+                ],
+                row=1,
+            )
+            tier_select.callback = self._on_quality_tier_change
+            self.add_item(tier_select)
+            if self._quality_tier is not None:
+                self._add_browse_and_nodes(row_browse=2, row_nodes=3)
+            self._add_reset_button(row=4)
             return
 
         # Node-list categories: browse-planet + node multi-select.
+        self._add_browse_and_nodes(row_browse=1, row_nodes=2)
+        self._add_reset_button(row=4)
+
+    def _add_browse_and_nodes(self, *, row_browse: int, row_nodes: int) -> None:
         browse = discord.ui.Select(
             placeholder="Browse planet for nodes  (pick one)",
             min_values=0,
@@ -193,7 +232,7 @@ class SettingsPanel(discord.ui.View):
                 )
                 for p in _ALL_PLANETS
             ],
-            row=1,
+            row=row_browse,
         )
         browse.callback = self._on_browse_planet_change
         self.add_item(browse)
@@ -210,10 +249,20 @@ class SettingsPanel(discord.ui.View):
                     min_values=0,
                     max_values=len(options),
                     options=options,
-                    row=2,
+                    row=row_nodes,
                 )
                 node_select.callback = self._on_nodes_change
                 self.add_item(node_select)
+
+    def _add_reset_button(self, *, row: int) -> None:
+        reset = discord.ui.Button(
+            label="Reset",
+            emoji="🧹",
+            style=discord.ButtonStyle.danger,
+            row=row,
+        )
+        reset.callback = self._on_reset_category
+        self.add_item(reset)
 
     def _current_node_set(self) -> frozenset[str]:
         assert self._settings is not None
@@ -223,6 +272,11 @@ class SettingsPanel(discord.ui.View):
             return self._settings.pinned_nodes
         if self.current_category is _Category.BLOCKED:
             return self._settings.blocked_nodes
+        if self.current_category is _Category.QUALITY:
+            if self._quality_tier == _STAR_EXCELLENT:
+                return self._settings.excellent_nodes
+            if self._quality_tier == _STAR_GOOD:
+                return self._settings.good_nodes
         return frozenset()
 
     def _nodes_for_browse_planet(
@@ -297,6 +351,16 @@ class SettingsPanel(discord.ui.View):
             value=_format_set(self._settings.blocked_nodes),
             inline=False,
         )
+        embed.add_field(
+            name="🌟  Excellent nodes",
+            value=_format_set(self._settings.excellent_nodes),
+            inline=False,
+        )
+        embed.add_field(
+            name="⭐  Good nodes",
+            value=_format_set(self._settings.good_nodes),
+            inline=False,
+        )
         return embed
 
     # ---------- callbacks ----------
@@ -304,12 +368,24 @@ class SettingsPanel(discord.ui.View):
     def _make_category_callback(self, cat: _Category):
         async def _cb(interaction: discord.Interaction) -> None:
             self.current_category = cat
-            self._browse_planet = None  # fresh start when switching category
+            self._browse_planet = None
+            self._quality_tier = None
             self._rebuild()
             await interaction.response.edit_message(
                 embed=self._build_embed(), view=self
             )
         return _cb
+
+    async def _on_quality_tier_change(
+        self, interaction: discord.Interaction
+    ) -> None:
+        values = interaction.data.get("values", [])  # type: ignore[arg-type]
+        self._quality_tier = values[0] if values else None
+        self._browse_planet = None  # fresh start for the new tier
+        self._rebuild()
+        await interaction.response.edit_message(
+            embed=self._build_embed(), view=self
+        )
 
     async def _on_browse_planet_change(
         self, interaction: discord.Interaction
@@ -357,6 +433,24 @@ class SettingsPanel(discord.ui.View):
             new_settings = replace(self._settings, pinned_nodes=new_set)
         elif self.current_category is _Category.BLOCKED:
             new_settings = replace(self._settings, blocked_nodes=new_set)
+        elif self.current_category is _Category.QUALITY:
+            # Tiers are mutually exclusive: adding a node to one tier removes
+            # it from the other. Otherwise a node could carry both 🌟 and ⭐
+            # — confusing on the tracker.
+            if self._quality_tier == _STAR_EXCELLENT:
+                new_settings = replace(
+                    self._settings,
+                    excellent_nodes=new_set,
+                    good_nodes=self._settings.good_nodes - new_set,
+                )
+            elif self._quality_tier == _STAR_GOOD:
+                new_settings = replace(
+                    self._settings,
+                    good_nodes=new_set,
+                    excellent_nodes=self._settings.excellent_nodes - new_set,
+                )
+            else:
+                return
         else:
             return
         await self._save(new_settings, interaction)
@@ -376,6 +470,20 @@ class SettingsPanel(discord.ui.View):
             new = replace(self._settings, pinned_nodes=frozenset())
         elif self.current_category is _Category.BLOCKED:
             new = replace(self._settings, blocked_nodes=frozenset())
+        elif self.current_category is _Category.QUALITY:
+            # Reset clears whichever tier is being edited; if no tier is
+            # picked yet, both are cleared so a single Reset wipes everything
+            # in the category.
+            if self._quality_tier == _STAR_EXCELLENT:
+                new = replace(self._settings, excellent_nodes=frozenset())
+            elif self._quality_tier == _STAR_GOOD:
+                new = replace(self._settings, good_nodes=frozenset())
+            else:
+                new = replace(
+                    self._settings,
+                    excellent_nodes=frozenset(),
+                    good_nodes=frozenset(),
+                )
         else:
             return
         await self._save(new, interaction)

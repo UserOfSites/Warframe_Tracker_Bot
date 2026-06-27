@@ -31,14 +31,40 @@ def _era_marker(era: Era, is_sp: bool, registry: EmojiRegistry) -> str:
     return f"{sp_emoji}{era_emoji}"
 
 
+def _quality_marker(
+    node: str,
+    excellent_nodes: frozenset[str],
+    good_nodes: frozenset[str],
+) -> str:
+    """Per-guild "quality" prefix for a fissure row.
+
+    🌟 outranks ⭐ if a node is in both sets (settings panel keeps them
+    mutually exclusive, but rendering is defensive). Empty string when the
+    node carries no marker — most nodes won't.
+    """
+    node_lc = node.strip().lower()
+    if any(n.lower() == node_lc for n in excellent_nodes):
+        return "🌟 "
+    if any(n.lower() == node_lc for n in good_nodes):
+        return "⭐ "
+    return ""
+
+
 def _render_fissure_row(
-    f: Fissure, now: datetime, translator: Translator, registry: EmojiRegistry
+    f: Fissure,
+    now: datetime,
+    translator: Translator,
+    registry: EmojiRegistry,
+    *,
+    excellent_nodes: frozenset[str] = frozenset(),
+    good_nodes: frozenset[str] = frozenset(),
 ) -> str:
     marker = _era_marker(f.era, f.is_steel_path, registry)
+    quality = _quality_marker(f.node, excellent_nodes, good_nodes)
     location = f"{f.node} ({f.planet})" if f.planet else f.node
     eta = humanize_remaining(f.expires_at - now, translator)
     return (
-        f"{marker} **{f.era.value}**{_COL_GAP}"
+        f"{quality}{marker} **{f.era.value}**{_COL_GAP}"
         f"{f.mission_type.value} — {location}{_COL_GAP}"
         f"`{eta}`"
     )
@@ -51,11 +77,20 @@ def _render_section(
     translator: Translator,
     registry: EmojiRegistry,
     empty_hint: str,
+    *,
+    excellent_nodes: frozenset[str] = frozenset(),
+    good_nodes: frozenset[str] = frozenset(),
 ) -> str:
     if not fissures:
         return f"**{title}**\n_{empty_hint}_"
     lines = [f"**{title}**"]
-    lines.extend(_render_fissure_row(f, now, translator, registry) for f in fissures)
+    lines.extend(
+        _render_fissure_row(
+            f, now, translator, registry,
+            excellent_nodes=excellent_nodes, good_nodes=good_nodes,
+        )
+        for f in fissures
+    )
     return "\n".join(lines)
 
 
@@ -76,7 +111,12 @@ def _render_resets_block(
 
 
 def build_fissure_embed(
-    board: FissureBoard, translator: Translator, registry: EmojiRegistry
+    board: FissureBoard,
+    translator: Translator,
+    registry: EmojiRegistry,
+    *,
+    excellent_nodes: frozenset[str] = frozenset(),
+    good_nodes: frozenset[str] = frozenset(),
 ) -> discord.Embed:
     embed = discord.Embed(
         title=translator.t("embed.title"),
@@ -92,6 +132,8 @@ def build_fissure_embed(
             translator,
             registry,
             translator.t("embed.empty.normal"),
+            excellent_nodes=excellent_nodes,
+            good_nodes=good_nodes,
         ),
         _render_section(
             translator.t("embed.section.steel_path"),
@@ -100,6 +142,8 @@ def build_fissure_embed(
             translator,
             registry,
             translator.t("embed.empty.steel_path"),
+            excellent_nodes=excellent_nodes,
+            good_nodes=good_nodes,
         ),
         _render_section(
             translator.t("embed.section.dojoshare"),
@@ -108,6 +152,8 @@ def build_fissure_embed(
             translator,
             registry,
             translator.t("embed.empty.dojoshare"),
+            excellent_nodes=excellent_nodes,
+            good_nodes=good_nodes,
         ),
     ]
     embed.description = "\n\n".join(sections)

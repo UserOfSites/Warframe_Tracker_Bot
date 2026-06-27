@@ -144,7 +144,13 @@ class FissureRefresher:
         settings = await self._bot.settings_repo.get(guild_id)
         translator = Translator(settings.locale)
         board = await self._bot.fissure_service.board_for_guild(guild_id)
-        return build_fissure_embed(board, translator, self._bot.emoji_registry)
+        return build_fissure_embed(
+            board,
+            translator,
+            self._bot.emoji_registry,
+            excellent_nodes=settings.excellent_nodes,
+            good_nodes=settings.good_nodes,
+        )
 
     async def build_vendors_embed(self, guild_id: int | None) -> discord.Embed:
         settings = await self._bot.settings_repo.get(guild_id)

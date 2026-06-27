@@ -30,6 +30,8 @@ def _settings(
     pinned_nodes=None,
     dojoshare_nodes=None,
     locale="en",
+    excellent_nodes=None,
+    good_nodes=None,
 ) -> GuildSettings:
     return GuildSettings(
         allowed_mission_types=allowed_mission_types or FAST_MISSIONS,
@@ -37,6 +39,8 @@ def _settings(
         pinned_nodes=pinned_nodes or frozenset(),
         dojoshare_nodes=dojoshare_nodes or frozenset(),
         locale=locale,
+        excellent_nodes=excellent_nodes if excellent_nodes is not None else frozenset(),
+        good_nodes=good_nodes if good_nodes is not None else frozenset(),
     )
 
 
@@ -57,7 +61,9 @@ async def test_panel_topic_buttons_only_until_category_picked():
     panel._rebuild()
     # 4 category buttons; no Reset yet (no category selected).
     btns = [c for c in panel.children if isinstance(c, discord.ui.Button)]
-    assert {b.label for b in btns} == {"Missions", "Dojoshare", "Pinned", "Blocked"}
+    assert {b.label for b in btns} == {
+        "Missions", "Dojoshare", "Pinned", "Blocked", "Quality",
+    }
     # No selects yet.
     selects = [c for c in panel.children if isinstance(c, discord.ui.Select)]
     assert selects == []
@@ -171,3 +177,40 @@ async def test_panel_reset_uses_per_category_default():
     assert new.pinned_nodes == frozenset()
     new = await call_reset(_Category.BLOCKED)
     assert new.blocked_nodes == frozenset()
+
+
+@pytest.mark.asyncio
+async def test_panel_quality_tier_mutually_exclusive():
+    """Adding a node to one tier removes it from the other — a node can't
+    be both 🌟 and ⭐."""
+    from titania.presentation.settings_panel import _STAR_EXCELLENT, _STAR_GOOD
+    catalog = {
+        "Apollodorus": NodeInfo("Apollodorus", "Mercury", "Capture"),
+        "Caduceus": NodeInfo("Caduceus", "Mercury", "Exterminate"),
+    }
+    settings = _settings(
+        excellent_nodes=frozenset(),
+        good_nodes=frozenset({"Apollodorus"}),  # currently rated "good"
+    )
+    bot = _bot_stub(settings, node_details=catalog)
+    panel = SettingsPanel(bot, guild_id=1)
+    panel._settings = settings
+    panel._node_details = catalog
+    panel.current_category = _Category.QUALITY
+    panel._quality_tier = _STAR_EXCELLENT
+    panel._browse_planet = "Mercury"
+    panel._rebuild()
+
+    # Promote Apollodorus to excellent — it must vanish from good.
+    interaction = MagicMock()
+    interaction.data = {"values": ["Apollodorus"]}
+    interaction.response.is_done.return_value = False
+    interaction.response.edit_message = AsyncMock()
+    await panel._on_nodes_change(interaction)
+
+    bot.settings_repo.save.assert_awaited_once()
+    saved = bot.settings_repo.save.await_args.args[1]
+    assert saved.excellent_nodes == frozenset({"Apollodorus"})
+    assert saved.good_nodes == frozenset(), "good set must drop Apollodorus"
+
+
