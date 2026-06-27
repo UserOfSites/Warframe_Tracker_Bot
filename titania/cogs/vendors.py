@@ -25,6 +25,7 @@ async def _safely_delete_message(
         pass
 
 
+@app_commands.guild_only()
 class Vendors(
     commands.GroupCog,
     name="vendors",

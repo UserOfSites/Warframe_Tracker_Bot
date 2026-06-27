@@ -15,6 +15,7 @@ from titania.storage.fissure_subscriptions_repo import FissureSubscriptionsRepos
 from titania.storage.guild_settings_repo import GuildSettingsRepository
 from titania.storage.tracked_channels_repo import TrackedChannelsRepository
 from titania.storage.tracked_vendors_repo import TrackedVendorsRepository
+from titania.storage.user_preferences_repo import UserPreferencesRepository
 
 if TYPE_CHECKING:
     from titania.config import Config
@@ -30,6 +31,7 @@ INITIAL_COGS = (
     "titania.cogs.tracking",
     "titania.cogs.vendors",
     "titania.cogs.notifications",
+    "titania.cogs.language",
 )
 
 
@@ -49,6 +51,7 @@ class TitaniaBot(commands.Bot):
         self.tracked_repo = TrackedChannelsRepository(db)
         self.tracked_vendors_repo = TrackedVendorsRepository(db)
         self.subscriptions_repo = FissureSubscriptionsRepository(db)
+        self.user_preferences_repo = UserPreferencesRepository(db)
         self.fissure_service = FissureService(
             data_source=data_source,
             settings_resolver=self.settings_repo.get,

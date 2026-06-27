@@ -34,6 +34,11 @@ CREATE TABLE IF NOT EXISTS tracked_vendors_channels (
 CREATE TABLE IF NOT EXISTS fissure_subscriptions (
     user_id         INTEGER NOT NULL,
     topic           TEXT    NOT NULL,
+    -- `subscribed` separates intent from filter state: a row can exist with
+    -- subscribed=0 if the user pre-configured a filter via the panel without
+    -- having reacted on a tracker. Reactions toggle subscribed; the panel
+    -- only touches the filter columns.
+    subscribed      INTEGER NOT NULL DEFAULT 1,
     nodes_filter    TEXT    NOT NULL DEFAULT '',
     planets_filter  TEXT    NOT NULL DEFAULT '',
     missions_filter TEXT    NOT NULL DEFAULT '',
@@ -43,6 +48,12 @@ CREATE TABLE IF NOT EXISTS fissure_subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_fissure_subs_topic
     ON fissure_subscriptions (topic);
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id    INTEGER PRIMARY KEY,
+    locale     TEXT    NOT NULL DEFAULT 'en',
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -88,6 +99,14 @@ class Database:
                     f"{new_col} TEXT NOT NULL DEFAULT ''"
                 )
                 log.info("migration: added fissure_subscriptions.%s", new_col)
+        if "subscribed" not in sub_cols:
+            # Existing rows pre-date the panel/filter separation — they were
+            # all created by reactions, so they're already subscribed.
+            await self._conn.execute(
+                "ALTER TABLE fissure_subscriptions ADD COLUMN "
+                "subscribed INTEGER NOT NULL DEFAULT 1"
+            )
+            log.info("migration: added fissure_subscriptions.subscribed")
         if "guild_id" in sub_cols:
             # Drop the guild_id dimension — subscriptions are now global per
             # user. Rebuild the table, deduping by (user_id, topic) and OR-

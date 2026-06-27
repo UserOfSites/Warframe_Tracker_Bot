@@ -328,8 +328,10 @@ class FilterPanel(discord.ui.View):
             return embed
         if self.current_topic.value not in self._subscribed:
             embed.description = (
-                "_You're not subscribed to this topic yet — saving filters "
-                "here will auto-subscribe you._"
+                "_You're **not subscribed** to this topic yet. Filters set "
+                "here are saved as preferences — react on a tracker's "
+                f"**{TOPIC_LABELS[self.current_topic]}** button in a server "
+                "to actually start receiving DMs._"
             )
         if cfg.node_mode != "none":
             node_value = _format_set(self.current_filter.nodes)

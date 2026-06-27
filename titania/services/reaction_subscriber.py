@@ -139,6 +139,12 @@ class ReactionSubscriber:
                 "reaction-subscribe failed user=%s topic=%s",
                 payload.user_id, topic.value,
             )
+            return
+        # Welcome the user right after their first opt-in so they get the
+        # "here's how to use this" intro promptly — no waiting for a matching
+        # fissure to fire. The notifier dedups so this is a no-op for users
+        # who've already been welcomed this session.
+        await self._bot.notifier.maybe_welcome(payload.user_id)
 
     async def _strip_foreign_reaction(
         self, payload: discord.RawReactionActionEvent

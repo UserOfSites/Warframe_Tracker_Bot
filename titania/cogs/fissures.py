@@ -12,6 +12,7 @@ class Fissures(commands.Cog):
     def __init__(self, bot: "TitaniaBot") -> None:
         self.bot = bot
 
+    @app_commands.guild_only()
     @app_commands.command(
         name="fissures",
         description="Show active Void Fissures (Normal · Steel Path · Dojoshare).",

@@ -4,6 +4,44 @@ from titania.domain.fissure import Fissure
 from titania.domain.topic import FissureTopic, TOPIC_LABELS
 
 
+def build_welcome_embed() -> discord.Embed:
+    """One-off intro DM sent the first time a user subscribes (via reaction)
+    or the first time a notification is about to be sent to them — whichever
+    happens first."""
+    embed = discord.Embed(
+        title="👋  You're subscribed",
+        description=(
+            "I'll DM you here whenever a fissure matching one of your topic "
+            "subscriptions goes live."
+        ),
+        color=discord.Color.green(),
+    )
+    embed.add_field(
+        name="🛠  Manage preferences",
+        value=(
+            "Use `/notifications` in DMs with me to set per-topic filters "
+            "(planets, mission types, specific nodes)."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="❌  Unsubscribe a topic",
+        value=(
+            "Click the same reaction on the tracker embed again to remove it."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🧹  Auto-cleanup",
+        value=(
+            "Each notification is removed automatically once its fissure "
+            "window expires, so your DM history stays clean."
+        ),
+        inline=False,
+    )
+    return embed
+
+
 _TOPIC_COLOR: dict[FissureTopic, discord.Color] = {
     FissureTopic.NORMAL_FAST: discord.Color.blue(),
     FissureTopic.SP_FAST: discord.Color.dark_red(),

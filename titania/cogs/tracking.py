@@ -17,6 +17,7 @@ class Tracking(commands.Cog):
     def __init__(self, bot: "TitaniaBot") -> None:
         self.bot = bot
 
+    @app_commands.guild_only()
     @app_commands.command(
         name="track",
         description="Auto-update an active-fissures embed in a channel.",
@@ -118,6 +119,7 @@ class Tracking(commands.Cog):
         # Re-raise anything else so the global handler still logs it.
         raise error
 
+    @app_commands.guild_only()
     @app_commands.command(
         name="untrack",
         description="Stop auto-updating the fissures embed.",

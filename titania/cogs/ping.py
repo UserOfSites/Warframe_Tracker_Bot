@@ -7,6 +7,7 @@ class Ping(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
+    @app_commands.guild_only()
     @app_commands.command(name="ping", description="Check that the bot is alive.")
     async def ping(self, interaction: discord.Interaction) -> None:
         latency_ms = round(self.bot.latency * 1000)
