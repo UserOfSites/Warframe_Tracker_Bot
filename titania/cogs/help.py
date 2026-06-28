@@ -50,8 +50,8 @@ _GENERAL_COMMANDS = (
 
 _SUBSCRIBE_FLOW = (
     "1. On a server with `/track` set up, click a reaction button on the "
-    "tracker embed (⚡ Tenno = Normal Fast, ⚔️ Steel Essence = SP Fast, "
-    "🏯 Clan XP = Dojoshare, 🌀 Omnia = SP Tuvul Cascade).\n"
+    "tracker embed (⚡ Tenno = Normal Fast, Steel Essence = SP Fast, "
+    "Clan XP = Dojoshare, Omnia = SP Tuvul Cascade).\n"
     "2. That topic is added to your subscriptions; you start receiving DM "
     "alerts and a persistent summary in our DMs.\n"
     "3. Optional: DM me `/notifications` to filter further (only certain "
@@ -75,7 +75,7 @@ class Help(commands.Cog):
     )
     async def help_cmd(self, interaction: discord.Interaction) -> None:
         embed = discord.Embed(
-            title="📖  Titania help",
+            title="📖  StonksFox help",
             description=(
                 "Below is every command grouped by where it lives. In a "
                 "server, the slash-command picker hides anything you don't "
@@ -110,7 +110,7 @@ class Help(commands.Cog):
         )
         embed.set_footer(
             text="Server owners: per-command access can be customized in "
-            "Server Settings → Integrations → Titania."
+            "Server Settings → Integrations → StonksFox."
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
