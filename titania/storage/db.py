@@ -56,6 +56,17 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     locale     TEXT    NOT NULL DEFAULT 'en',
     updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Per-user persistent "summary" DM message — the equivalent of /track for
+-- DMs. The notifier edits this single message as the user's matches change
+-- so they don't accumulate one DM per fissure. (Brief alerts are sent as
+-- separate, auto-deleting messages.)
+CREATE TABLE IF NOT EXISTS user_notification_messages (
+    user_id    INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
