@@ -110,6 +110,14 @@ class FissureNotifier:
             for fissures in matches_by_topic.values()
             for f in fissures
         }
+
+        # Muted users: still keep the seen-set fresh so that flipping back
+        # via /unmute doesn't dump every currently-active fissure as a flood
+        # of "new" alerts. Just don't dispatch summaries or alerts.
+        if await self._bot.user_preferences_repo.is_muted(user_id):
+            self._user_seen[user_id] = current_keys
+            return
+
         previous = self._user_seen.get(user_id)
 
         if previous is None:
@@ -251,40 +259,123 @@ class FissureNotifier:
         except (discord.NotFound, discord.HTTPException):
             return
         text = build_alert_text(new_fissures)
+        latest_expiry = max(f.expires_at for f in new_fissures)
+        # Hand the deletion to Discord via ``delete_after`` — no DB tracking,
+        # no per-tick sweep needed in the steady state. The client/server
+        # auto-deletes once the timer fires. Floor at 1s so a fissure that's
+        # technically already expired by the time we send still gets cleaned.
+        ttl = max((latest_expiry - datetime.now(timezone.utc)).total_seconds(), 1.0)
         try:
-            sent = await user.send(text)
+            sent = await user.send(text, delete_after=ttl)
         except discord.Forbidden:
             log.info("alert DM forbidden for user %s", user_id)
             return
         except discord.HTTPException as e:
             log.warning("alert DM failed user=%s: %s", user_id, e)
             return
-        # Auto-delete when the LAST of the covered fissures expires — that's
-        # the moment the alert text becomes stale.
-        latest_expiry = max(f.expires_at for f in new_fissures)
+        # In-memory ledger only so ``/cleanup`` can wipe in-flight alerts
+        # immediately instead of waiting for their timers. Pruned each tick.
         self._alerts.setdefault(user_id, []).append(
             _AlertEntry(message=sent, expires_at=latest_expiry)
         )
 
     async def _cleanup_expired_alerts(self) -> None:
+        """Prune the in-memory ledger of already-expired entries. The actual
+        Discord deletion is handled by the ``delete_after`` timer attached
+        when each alert was sent."""
         now = datetime.now(timezone.utc)
         for user_id, alerts in list(self._alerts.items()):
-            still_active: list[_AlertEntry] = []
-            for entry in alerts:
-                if entry.expires_at <= now:
-                    try:
-                        await entry.message.delete()
-                    except discord.NotFound:
-                        pass
-                    except discord.Forbidden:
-                        log.info(
-                            "alert delete forbidden for message %s", entry.message.id
-                        )
-                    except discord.HTTPException as e:
-                        log.warning("alert delete failed: %s", e)
-                else:
-                    still_active.append(entry)
+            still_active = [a for a in alerts if a.expires_at > now]
             if still_active:
                 self._alerts[user_id] = still_active
             else:
                 del self._alerts[user_id]
+
+    # ---------- /cleanup and /unmute support ----------
+
+    async def cleanup_user(self, user_id: int) -> None:
+        """Full reset for ``/cleanup``: wipe the chat (summary + tracked
+        alerts), drop in-memory state, then immediately re-welcome the user
+        and re-post a fresh summary so the DM is in a clean known-good shape
+        when the command completes. Subscriptions and filters are NOT
+        touched — the user keeps their preferences."""
+        # 1) Wipe alert pings tracked in memory (best-effort; alerts also
+        #    self-delete via their delete_after timers, so this is mostly to
+        #    accelerate the cleanup when the user invokes it manually).
+        alerts = self._alerts.pop(user_id, [])
+        for entry in alerts:
+            try:
+                await entry.message.delete()
+            except (discord.NotFound, discord.Forbidden):
+                pass
+            except discord.HTTPException as e:
+                log.warning("cleanup alert delete failed: %s", e)
+
+        # 2) Wipe the persistent summary message.
+        existing = await self._bot.user_notification_messages_repo.get(user_id)
+        if existing is not None:
+            channel_id, message_id = existing
+            await self._delete_message(channel_id, message_id)
+            await self._bot.user_notification_messages_repo.delete(user_id)
+
+        # 3) Drop in-memory state so the re-welcome and re-summary below
+        #    fire as if for the first time.
+        self._user_seen.pop(user_id, None)
+        self._welcomed.discard(user_id)
+
+        # 4) Re-welcome (fires because we just cleared _welcomed).
+        await self.maybe_welcome(user_id)
+
+        # 5) Re-create the summary based on the user's current matches.
+        user_subs = await self._collect_user_subscriptions()
+        subs = user_subs.get(user_id)
+        if not subs:
+            # No subscriptions — welcome is enough; no summary needed.
+            return
+        all_fissures = await self._fetch_clean_fissures()
+        matches_by_topic = self._matches_for_user(subs, all_fissures)
+        # Baseline the seen-set NOW so the next tick doesn't treat these
+        # already-active fissures as new and dispatch alerts for them.
+        self._user_seen[user_id] = {
+            _fissure_key(f)
+            for fissures in matches_by_topic.values()
+            for f in fissures
+        }
+        await self._upsert_summary(user_id, matches_by_topic)
+
+    def reset_seen(self, user_id: int) -> None:
+        """Drop the user's in-memory seen-set so the next tick silently
+        re-baselines. Used by ``/unmute`` so resuming after a mute doesn't
+        dump every currently-active fissure as a flood of "new" alerts."""
+        self._user_seen.pop(user_id, None)
+
+    # ---------- private helpers ----------
+
+    async def _delete_message(
+        self, channel_id: int, message_id: int
+    ) -> None:
+        """Best-effort delete by channel+message id without paying for a
+        full ``fetch_message``. Swallowed exceptions: the only contract is
+        "the message is gone after this returns" — already-gone is fine."""
+        try:
+            channel = (
+                self._bot.get_channel(channel_id)
+                or await self._bot.fetch_channel(channel_id)
+            )
+            if not isinstance(channel, discord.abc.Messageable):
+                return
+            partial = channel.get_partial_message(message_id)
+            await partial.delete()
+        except (discord.NotFound, discord.Forbidden):
+            pass
+        except discord.HTTPException as e:
+            log.warning("delete %s/%s failed: %s", channel_id, message_id, e)
+
+    async def _fetch_clean_fissures(self) -> list[Fissure]:
+        """Same upstream cleanup the refresher applies before calling
+        ``process`` — railjack + Requiem are dropped because the rest of the
+        bot ignores them too."""
+        from titania.domain.era import Era
+        from titania.domain.railjack import is_railjack
+        raw = await self._bot.data_source.fetch_fissures()
+        return [f for f in raw if not is_railjack(f) and f.era is not Era.REQUIEM]

@@ -54,13 +54,18 @@ CREATE INDEX IF NOT EXISTS idx_fissure_subs_topic
 CREATE TABLE IF NOT EXISTS user_preferences (
     user_id    INTEGER PRIMARY KEY,
     locale     TEXT    NOT NULL DEFAULT 'en',
+    -- /mute and /unmute flip this. The notifier still tracks state for
+    -- muted users so /unmute can baseline silently instead of dumping every
+    -- currently-active fissure into the user's DM.
+    muted      INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Per-user persistent "summary" DM message — the equivalent of /track for
 -- DMs. The notifier edits this single message as the user's matches change
 -- so they don't accumulate one DM per fissure. (Brief alerts are sent as
--- separate, auto-deleting messages.)
+-- separate, auto-deleting messages via Discord's delete_after timer — no
+-- DB persistence needed for those.)
 CREATE TABLE IF NOT EXISTS user_notification_messages (
     user_id    INTEGER PRIMARY KEY,
     channel_id INTEGER NOT NULL,
@@ -108,6 +113,16 @@ class Database:
                     f"{star_col} TEXT NOT NULL DEFAULT ''"
                 )
                 log.info("migration: added guild_settings.%s", star_col)
+        async with self._conn.execute(
+            "PRAGMA table_info(user_preferences)"
+        ) as cur:
+            prefs_cols = {row[1] async for row in cur}
+        if "muted" not in prefs_cols:
+            await self._conn.execute(
+                "ALTER TABLE user_preferences ADD COLUMN "
+                "muted INTEGER NOT NULL DEFAULT 0"
+            )
+            log.info("migration: added user_preferences.muted")
         async with self._conn.execute(
             "PRAGMA table_info(fissure_subscriptions)"
         ) as cur:
