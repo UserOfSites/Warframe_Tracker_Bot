@@ -293,12 +293,19 @@ class FissureNotifier:
 
     # ---------- /cleanup and /unmute support ----------
 
-    async def cleanup_user(self, user_id: int) -> None:
+    async def cleanup_user(
+        self, user_id: int, *, recreate: bool = True
+    ) -> None:
         """Full reset for ``/cleanup``: wipe the chat (summary + tracked
         alerts), drop in-memory state, then immediately re-welcome the user
         and re-post a fresh summary so the DM is in a clean known-good shape
         when the command completes. Subscriptions and filters are NOT
-        touched — the user keeps their preferences."""
+        touched — the user keeps their preferences.
+
+        ``recreate=False`` skips the welcome+summary regeneration. Used by
+        ``/wipe`` which has already iterated the DM history and deleted
+        everything — the user wants silence, not a fresh start.
+        """
         # 1) Wipe alert pings tracked in memory (best-effort; alerts also
         #    self-delete via their delete_after timers, so this is mostly to
         #    accelerate the cleanup when the user invokes it manually).
@@ -322,6 +329,9 @@ class FissureNotifier:
         #    fire as if for the first time.
         self._user_seen.pop(user_id, None)
         self._welcomed.discard(user_id)
+
+        if not recreate:
+            return
 
         # 4) Re-welcome (fires because we just cleared _welcomed).
         await self.maybe_welcome(user_id)

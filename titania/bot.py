@@ -35,6 +35,7 @@ INITIAL_COGS = (
     "titania.cogs.vendors",
     "titania.cogs.notifications",
     "titania.cogs.language",
+    "titania.cogs.help",
 )
 
 
