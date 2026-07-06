@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from titania.data.baro.history import BaroHistoryClient
+from titania.services.ayatan_service import AyatanService
 from titania.services.baro_service import BaroService
 from titania.services.emoji_registry import EmojiRegistry, ItemEmojiCache
 from titania.services.fissure_service import FissureService
@@ -63,6 +64,7 @@ class TitaniaBot(commands.Bot):
         )
         self.baro_history = BaroHistoryClient()
         self.baro_service = BaroService(data_source, self.baro_history)
+        self.ayatan_service = AyatanService()
         self.emoji_registry = EmojiRegistry()
         self.item_emoji_cache = ItemEmojiCache()
         self.notifier = FissureNotifier(self)

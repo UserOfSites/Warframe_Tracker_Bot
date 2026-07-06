@@ -56,6 +56,11 @@ class _FakeBot:
         self.tracked_vendors_repo = _NoopVendorsRepo()
         self.baro_service = MagicMock()
         self.baro_service.board = AsyncMock(side_effect=AssertionError("vendors disabled in this fake bot"))
+        # Real AyatanService — pure/stateless, so plumbing it in is trivial
+        # and lets the fissure embed test its Ayatan footer end-to-end.
+        from titania.services.ayatan_service import AyatanService
+
+        self.ayatan_service = AyatanService()
         self.emoji_registry = EmojiRegistry()  # empty cache; renderers fall back to text
         # Discord client API used by refresher
         self.get_channel = MagicMock(return_value=None)

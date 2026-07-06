@@ -145,6 +145,50 @@ def test_next_resets_split_into_two_inline_fields(now, en, registry):
     assert "<:lith_relic:1>" in (sp_field.value or "")
 
 
+def test_ayatan_line_omitted_when_slot_not_provided(now, en, registry):
+    """Backwards-compat: build_fissure_embed without ayatan_slot must render
+    exactly as before — no extra field, no stray text."""
+    embed = build_fissure_embed(_board(now), en, registry)
+    for field in embed.fields:
+        assert "Ayatan" not in (field.name or "")
+
+
+def test_ayatan_line_added_when_slot_provided(now, en, registry):
+    from datetime import timedelta
+    from titania.domain.ayatan import AYATAN_SCULPTURES, AyatanSlot
+
+    slot = AyatanSlot(
+        current=AYATAN_SCULPTURES["Orta"],
+        next=AYATAN_SCULPTURES["Valana"],
+        changes_at=now + timedelta(minutes=42),
+    )
+    embed = build_fissure_embed(_board(now), en, registry, ayatan_slot=slot)
+    ayatan_field = next(
+        (f for f in embed.fields if "Ayatan" in (f.name or "")), None
+    )
+    assert ayatan_field is not None, "Ayatan field must be present"
+    assert "Orta" in (ayatan_field.value or "")
+    assert "Valana" in (ayatan_field.value or "")
+    assert "2700" in (ayatan_field.value or "")  # Orta's full endo
+    # Discord native timestamp for the changeover
+    expected_ts = int((now + timedelta(minutes=42)).timestamp())
+    assert f"<t:{expected_ts}:R>" in (ayatan_field.value or "")
+
+
+def test_ayatan_field_lives_at_the_bottom_of_the_embed(now, en, registry):
+    from datetime import timedelta
+    from titania.domain.ayatan import AYATAN_SCULPTURES, AyatanSlot
+
+    slot = AyatanSlot(
+        current=AYATAN_SCULPTURES["Vaya"],
+        next=AYATAN_SCULPTURES["Sah"],
+        changes_at=now + timedelta(minutes=10),
+    )
+    embed = build_fissure_embed(_board(now), en, registry, ayatan_slot=slot)
+    # Field order after Next Resets (Normal, Steel Path) → Ayatan is last.
+    assert embed.fields[-1].name and "Ayatan" in embed.fields[-1].name
+
+
 def test_registry_missing_emoji_falls_back_to_era_text(now, en):
     empty = EmojiRegistry()
     embed = build_fissure_embed(_board(now), en, empty)

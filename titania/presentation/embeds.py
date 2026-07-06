@@ -2,6 +2,7 @@ from datetime import datetime
 
 import discord
 
+from titania.domain.ayatan import AyatanSlot
 from titania.domain.era import Era
 from titania.domain.fissure import Fissure, FissureBoard, NextReset
 from titania.i18n.translator import Translator
@@ -114,6 +115,22 @@ def _render_resets_block(
     return "\n".join(lines)
 
 
+def _render_ayatan_line(slot: AyatanSlot) -> str:
+    """One-line footer: current sculpture + endo + next-rotation timestamp.
+
+    Uses Discord's ``<t:UNIX:R>`` and ``<t:UNIX:t>`` tokens so the countdown
+    and clock time both render in each viewer's local timezone automatically
+    — the rotation itself is anchored to fixed UTC-4, but nobody has to
+    convert that in their head.
+    """
+    ts = int(slot.changes_at.timestamp())
+    return (
+        f"🗿 **Ayatan now:** {slot.current.name} "
+        f"({slot.current.full_endo} endo)  ·  "
+        f"**Next:** {slot.next.name} <t:{ts}:R> (<t:{ts}:t>)"
+    )
+
+
 def build_fissure_embed(
     board: FissureBoard,
     translator: Translator,
@@ -121,6 +138,7 @@ def build_fissure_embed(
     *,
     excellent_nodes: frozenset[str] = frozenset(),
     good_nodes: frozenset[str] = frozenset(),
+    ayatan_slot: AyatanSlot | None = None,
 ) -> discord.Embed:
     embed = discord.Embed(
         title=translator.t("embed.title"),
@@ -182,6 +200,14 @@ def build_fissure_embed(
         value=_render_resets_block(sp_resets, board.generated_at, translator, registry),
         inline=True,
     )
+
+    if ayatan_slot is not None:
+        # One-line panel underneath everything else in the fissures embed.
+        embed.add_field(
+            name="Ayatan Sculpture Rotation",
+            value=_render_ayatan_line(ayatan_slot),
+            inline=False,
+        )
 
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed

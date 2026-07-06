@@ -144,12 +144,17 @@ class FissureRefresher:
         settings = await self._bot.settings_repo.get(guild_id)
         translator = Translator(settings.locale)
         board = await self._bot.fissure_service.board_for_guild(guild_id)
+        # Stateless — pulls current UTC time and returns the current+next
+        # sculpture. Recomputed every tick so the embed always shows the
+        # right hour even if a refresh coincides with a rotation boundary.
+        ayatan_slot = self._bot.ayatan_service.current_slot()
         return build_fissure_embed(
             board,
             translator,
             self._bot.emoji_registry,
             excellent_nodes=settings.excellent_nodes,
             good_nodes=settings.good_nodes,
+            ayatan_slot=ayatan_slot,
         )
 
     async def build_vendors_embed(self, guild_id: int | None) -> discord.Embed:
