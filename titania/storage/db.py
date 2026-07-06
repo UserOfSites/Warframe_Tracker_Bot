@@ -52,13 +52,17 @@ CREATE INDEX IF NOT EXISTS idx_fissure_subs_topic
     ON fissure_subscriptions (topic);
 
 CREATE TABLE IF NOT EXISTS user_preferences (
-    user_id    INTEGER PRIMARY KEY,
-    locale     TEXT    NOT NULL DEFAULT 'en',
+    user_id     INTEGER PRIMARY KEY,
+    locale      TEXT    NOT NULL DEFAULT 'en',
     -- /mute and /unmute flip this. The notifier still tracks state for
     -- muted users so /unmute can baseline silently instead of dumping every
     -- currently-active fissure into the user's DM.
-    muted      INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    muted       INTEGER NOT NULL DEFAULT 0,
+    -- Timestamp of the first welcome DM sent to this user. NULL until the
+    -- notifier successfully delivers the welcome embed once; persistent so
+    -- container restarts don't re-welcome existing subscribers.
+    welcomed_at TEXT,
+    updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Per-user persistent "summary" DM message — the equivalent of /track for
@@ -123,6 +127,31 @@ class Database:
                 "muted INTEGER NOT NULL DEFAULT 0"
             )
             log.info("migration: added user_preferences.muted")
+        if "welcomed_at" not in prefs_cols:
+            await self._conn.execute(
+                "ALTER TABLE user_preferences ADD COLUMN welcomed_at TEXT"
+            )
+            log.info("migration: added user_preferences.welcomed_at")
+            # Backfill: anyone with an existing summary message or a
+            # subscription has clearly been welcomed already (they went
+            # through the react-to-subscribe flow that triggers the welcome).
+            # Marking them prevents a one-time re-welcome on the next tick
+            # after this migration lands.
+            await self._conn.execute(
+                """
+                INSERT INTO user_preferences (user_id, welcomed_at, updated_at)
+                SELECT DISTINCT user_id, datetime('now'), datetime('now')
+                FROM (
+                    SELECT user_id FROM user_notification_messages
+                    UNION
+                    SELECT user_id FROM fissure_subscriptions
+                )
+                WHERE true
+                ON CONFLICT(user_id) DO UPDATE SET
+                    welcomed_at = COALESCE(user_preferences.welcomed_at, datetime('now'))
+                """
+            )
+            log.info("migration: backfilled welcomed_at for existing users")
         async with self._conn.execute(
             "PRAGMA table_info(fissure_subscriptions)"
         ) as cur:

@@ -57,3 +57,43 @@ class UserPreferencesRepository:
                 (user_id, 1 if muted else 0),
             )
         await self._db.commit()
+
+    async def has_been_welcomed(self, user_id: int) -> bool:
+        """Whether the notifier has ever successfully sent a welcome DM to
+        this user. Persistent across restarts."""
+        async with self._db.cursor() as cur:
+            await cur.execute(
+                "SELECT welcomed_at FROM user_preferences WHERE user_id = ?",
+                (user_id,),
+            )
+            row = await cur.fetchone()
+        return bool(row and row[0])
+
+    async def clear_welcomed(self, user_id: int) -> None:
+        """Reset the welcome flag so the next tick re-welcomes the user.
+        Used by ``/cleanup`` which intentionally rebuilds the DM state from
+        scratch."""
+        async with self._db.cursor() as cur:
+            await cur.execute(
+                "UPDATE user_preferences SET welcomed_at = NULL, "
+                "updated_at = datetime('now') WHERE user_id = ?",
+                (user_id,),
+            )
+        await self._db.commit()
+
+    async def mark_welcomed(self, user_id: int) -> None:
+        """Record that the notifier has just delivered the welcome DM.
+        Called only after a successful send so we never mark a user we
+        actually failed to reach (Forbidden / NotFound)."""
+        async with self._db.cursor() as cur:
+            await cur.execute(
+                """
+                INSERT INTO user_preferences (user_id, welcomed_at, updated_at)
+                VALUES (?, datetime('now'), datetime('now'))
+                ON CONFLICT(user_id) DO UPDATE SET
+                    welcomed_at = COALESCE(user_preferences.welcomed_at, datetime('now')),
+                    updated_at = datetime('now')
+                """,
+                (user_id,),
+            )
+        await self._db.commit()

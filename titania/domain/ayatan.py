@@ -46,8 +46,15 @@ assert len(ROTATION_UTC4) == 24
 
 @dataclass(frozen=True)
 class AyatanSlot:
-    """Snapshot of the rotation at a specific moment in time."""
+    """Snapshot of the rotation at a specific moment in time.
+
+    ``next`` and ``next_change_at`` skip over consecutive hours that keep the
+    same sculpture — Valana holds slots 3+4, 12, 16, 21+23 for example, so
+    reporting the "next hour" would just repeat "Valana" and confuse readers.
+    ``next`` is the sculpture at the first *different* hour, and
+    ``next_change_at`` is when the current one actually stops spawning.
+    """
 
     current: AyatanSculpture
     next: AyatanSculpture
-    changes_at: datetime  # UTC — always aware, top-of-next-hour in UTC-4
+    next_change_at: datetime  # UTC — when `current` stops and `next` starts

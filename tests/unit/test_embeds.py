@@ -160,7 +160,7 @@ def test_ayatan_line_added_when_slot_provided(now, en, registry):
     slot = AyatanSlot(
         current=AYATAN_SCULPTURES["Orta"],
         next=AYATAN_SCULPTURES["Valana"],
-        changes_at=now + timedelta(minutes=42),
+        next_change_at=now + timedelta(minutes=42),
     )
     embed = build_fissure_embed(_board(now), en, registry, ayatan_slot=slot)
     ayatan_field = next(
@@ -182,7 +182,7 @@ def test_ayatan_field_lives_at_the_bottom_of_the_embed(now, en, registry):
     slot = AyatanSlot(
         current=AYATAN_SCULPTURES["Vaya"],
         next=AYATAN_SCULPTURES["Sah"],
-        changes_at=now + timedelta(minutes=10),
+        next_change_at=now + timedelta(minutes=10),
     )
     embed = build_fissure_embed(_board(now), en, registry, ayatan_slot=slot)
     # Field order after Next Resets (Normal, Steel Path) → Ayatan is last.

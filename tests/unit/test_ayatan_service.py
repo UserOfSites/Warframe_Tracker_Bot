@@ -38,14 +38,38 @@ def test_next_change_at_wraps_across_midnight(svc: AyatanService):
     assert slot.current.name == "Valana"
     assert slot.next.name == "Vaya"
     # changes_at is 04:00 UTC on 2026-06-25 = 00:00 UTC-4 on 2026-06-25
-    assert slot.changes_at == datetime(2026, 6, 25, 4, 0, tzinfo=UTC)
+    assert slot.next_change_at == datetime(2026, 6, 25, 4, 0, tzinfo=UTC)
 
 
 def test_changes_at_is_top_of_next_utc4_hour(svc: AyatanService):
-    # 09:23 UTC-4 → next boundary 10:00 UTC-4 = 14:00 UTC.
+    # 09:23 UTC-4 = Orta. Next different at 10:00 UTC-4 = Piv = 14:00 UTC.
     now = datetime(2026, 6, 24, 13, 23, tzinfo=UTC)  # 09:23 UTC-4
     slot = svc.current_slot(now)
-    assert slot.changes_at == datetime(2026, 6, 24, 14, 0, tzinfo=UTC)
+    assert slot.current.name == "Orta"
+    assert slot.next.name == "Piv"
+    assert slot.next_change_at == datetime(2026, 6, 24, 14, 0, tzinfo=UTC)
+
+
+def test_next_skips_consecutive_same_sculpture(svc: AyatanService):
+    """Valana holds slots 3 and 4 in a row. At 03:00 UTC-4, ``next`` must
+    be the *following different* sculpture (Piv at slot 5), not another
+    Valana."""
+    # 03:00 UTC-4 = 07:00 UTC.
+    now = datetime(2026, 6, 24, 7, 0, tzinfo=UTC)
+    slot = svc.current_slot(now)
+    assert slot.current.name == "Valana"
+    assert slot.next.name == "Piv"  # NOT "Valana"
+    # Changeover at 05:00 UTC-4 = 09:00 UTC.
+    assert slot.next_change_at == datetime(2026, 6, 24, 9, 0, tzinfo=UTC)
+
+
+def test_next_skips_consecutive_same_sculpture_mid_hour(svc: AyatanService):
+    # 03:24 UTC-4 (matches the reported screenshot: Valana → Valana bug).
+    now = datetime(2026, 6, 24, 7, 24, tzinfo=UTC)
+    slot = svc.current_slot(now)
+    assert slot.current.name == "Valana"
+    assert slot.next.name == "Piv"
+    assert slot.next_change_at == datetime(2026, 6, 24, 9, 0, tzinfo=UTC)
 
 
 def test_all_24_slots_reachable_and_valid(svc: AyatanService):

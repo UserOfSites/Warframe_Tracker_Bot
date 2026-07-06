@@ -68,10 +68,17 @@ class FissureNotifier:
     # ---------- public entry points ----------
 
     async def maybe_welcome(self, user_id: int) -> None:
-        """Send the welcome DM if we haven't yet (idempotent per process)."""
+        """Send the welcome DM if we haven't yet. Idempotent both per-process
+        (fast path via ``_welcomed``) and across restarts (durable via
+        ``user_preferences.welcomed_at``)."""
         if user_id in self._welcomed:
             return
-        self._welcomed.add(user_id)
+        # Persistent guard — survives container restarts. Only skips the send;
+        # we still populate ``_welcomed`` so subsequent in-process calls hit
+        # the fast path without touching SQLite.
+        if await self._bot.user_preferences_repo.has_been_welcomed(user_id):
+            self._welcomed.add(user_id)
+            return
         try:
             user = self._bot.get_user(user_id) or await self._bot.fetch_user(user_id)
         except (discord.NotFound, discord.HTTPException) as e:
@@ -81,8 +88,14 @@ class FissureNotifier:
             await user.send(embed=build_welcome_embed())
         except discord.Forbidden:
             log.info("welcome DM forbidden for user %s", user_id)
+            return
         except discord.HTTPException as e:
             log.warning("welcome DM failed user=%s: %s", user_id, e)
+            return
+        # Mark only after a successful delivery so a Forbidden user is
+        # retried later if they eventually open their DMs to the bot.
+        self._welcomed.add(user_id)
+        await self._bot.user_preferences_repo.mark_welcomed(user_id)
 
     async def process(self, all_fissures: list[Fissure]) -> None:
         # Sweep expired alerts first so the channel breathes before we possibly
@@ -332,6 +345,11 @@ class FissureNotifier:
 
         if not recreate:
             return
+
+        # 3b) Also clear the persistent welcome flag — /cleanup with
+        #     recreate=True is meant to *rebuild* the DM from scratch, so the
+        #     user should get the welcome embed again.
+        await self._bot.user_preferences_repo.clear_welcomed(user_id)
 
         # 4) Re-welcome (fires because we just cleared _welcomed).
         await self.maybe_welcome(user_id)

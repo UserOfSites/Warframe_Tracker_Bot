@@ -13,28 +13,34 @@ _UTC_MINUS_4 = timezone(timedelta(hours=-4), name="UTC-4")
 
 
 class AyatanService:
-    """Stateless lookup: which sculpture is spawning right now, when the next
-    rotation happens, and what comes after. Nothing to inject — the rotation
-    is a compile-time constant."""
+    """Stateless lookup: which sculpture is spawning right now, when the
+    current one *actually* rotates away, and what comes next. Consecutive
+    same-sculpture hours are collapsed so ``next`` never repeats ``current``
+    — otherwise the embed would show pointless "Next: Valana" lines when
+    Valana holds two hours in a row."""
 
     def current_slot(self, now: datetime | None = None) -> AyatanSlot:
-        # Always work in UTC first, then project to UTC-4 for the hour lookup.
-        # If the caller passed a naive datetime we treat it as UTC (used only
-        # by tests; the bot itself always passes an aware one).
         now = now or datetime.now(timezone.utc)
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
         now_utc4 = now.astimezone(_UTC_MINUS_4)
         current_hour = now_utc4.hour
+        current_name = ROTATION_UTC4[current_hour]
 
-        # Next rotation boundary is the top of the *next* hour in UTC-4.
-        next_change_utc4 = now_utc4.replace(
-            minute=0, second=0, microsecond=0
-        ) + timedelta(hours=1)
-        next_hour = next_change_utc4.hour  # already 0..23, wraps at midnight
-
-        return AyatanSlot(
-            current=AYATAN_SCULPTURES[ROTATION_UTC4[current_hour]],
-            next=AYATAN_SCULPTURES[ROTATION_UTC4[next_hour]],
-            changes_at=next_change_utc4.astimezone(timezone.utc),
-        )
+        # Walk forward until we hit a different sculpture. Max 24 iterations
+        # is a safe cap (the whole rotation is 24 slots) and the loop is
+        # guaranteed to terminate because the rotation contains at least
+        # two distinct sculptures.
+        top_of_hour = now_utc4.replace(minute=0, second=0, microsecond=0)
+        for offset in range(1, 25):
+            candidate_hour = (current_hour + offset) % 24
+            candidate_name = ROTATION_UTC4[candidate_hour]
+            if candidate_name != current_name:
+                next_change_utc4 = top_of_hour + timedelta(hours=offset)
+                return AyatanSlot(
+                    current=AYATAN_SCULPTURES[current_name],
+                    next=AYATAN_SCULPTURES[candidate_name],
+                    next_change_at=next_change_utc4.astimezone(timezone.utc),
+                )
+        # Impossible in practice — the rotation has at least two sculptures.
+        raise RuntimeError("rotation table only contains one sculpture")

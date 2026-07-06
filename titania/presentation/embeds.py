@@ -116,14 +116,18 @@ def _render_resets_block(
 
 
 def _render_ayatan_line(slot: AyatanSlot) -> str:
-    """One-line footer: current sculpture + endo + next-rotation timestamp.
+    """One-line footer: current sculpture + endo + next-different timestamp.
 
     Uses Discord's ``<t:UNIX:R>`` and ``<t:UNIX:t>`` tokens so the countdown
     and clock time both render in each viewer's local timezone automatically
     — the rotation itself is anchored to fixed UTC-4, but nobody has to
     convert that in their head.
+
+    ``slot.next`` is the *next different* sculpture: for hours where the
+    same sculpture holds multiple slots (Valana holds six), the countdown
+    still points to the moment the sculpture actually changes.
     """
-    ts = int(slot.changes_at.timestamp())
+    ts = int(slot.next_change_at.timestamp())
     return (
         f"🗿 **Ayatan now:** {slot.current.name} "
         f"({slot.current.full_endo} endo)  ·  "
