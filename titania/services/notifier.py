@@ -124,12 +124,13 @@ class FissureNotifier:
             for f in fissures
         }
 
-        # Muted users: still keep the seen-set fresh so that flipping back
-        # via /unmute doesn't dump every currently-active fissure as a flood
-        # of "new" alerts. Just don't dispatch summaries or alerts.
-        if await self._bot.user_preferences_repo.is_muted(user_id):
-            self._user_seen[user_id] = current_keys
-            return
+        # Mute is a **notification-only** switch: it silences the short "new
+        # fissure" alert pings but the persistent summary DM still tracks the
+        # user's matches in real time (welcome DM also still fires — it's
+        # onboarding, not a notification). This matches how "quiet mode"
+        # works in most chat apps: your dashboard stays live, your phone
+        # doesn't buzz.
+        is_muted = await self._bot.user_preferences_repo.is_muted(user_id)
 
         previous = self._user_seen.get(user_id)
 
@@ -146,7 +147,7 @@ class FissureNotifier:
             await self._upsert_summary(user_id, matches_by_topic)
 
         new_keys = current_keys - previous
-        if new_keys:
+        if new_keys and not is_muted:
             new_fissures = [
                 f
                 for fissures in matches_by_topic.values()
