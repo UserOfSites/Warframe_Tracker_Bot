@@ -11,7 +11,11 @@ from titania.domain.mission_type import (
     MissionType,
     parse_mission_type,
 )
-from titania.domain.node import STAR_CHART_PLANETS, NodeInfo
+from titania.domain.node import (
+    PHOBOS_FALLBACK_NODES,
+    STAR_CHART_PLANETS,
+    NodeInfo,
+)
 from titania.services.guild_settings import GuildSettings
 
 if TYPE_CHECKING:
@@ -283,8 +287,13 @@ class SettingsPanel(discord.ui.View):
         """Options for the per-planet node multi-select. All nodes on the
         browsed planet, with mission type in the label so operators can pick
         the right one. Already-selected nodes float to the top so they
-        remain editable. Capped at 25."""
-        if not self._node_details or not self._browse_planet:
+        remain editable. Capped at 25.
+
+        If the /solnodes catalog returns nothing for the browsed planet
+        (Phobos, currently, since warframestat files its nodes under Mars),
+        fall back to the static list in
+        :data:`titania.domain.node.PHOBOS_FALLBACK_NODES`."""
+        if not self._browse_planet:
             return []
         planet_lc = self._browse_planet.lower()
         on_planet = sorted(
@@ -292,6 +301,11 @@ class SettingsPanel(discord.ui.View):
              if info.planet.lower() == planet_lc),
             key=lambda info: info.name,
         )
+        if not on_planet and planet_lc == "phobos":
+            on_planet = [
+                NodeInfo(name=n, planet="Phobos", mission_type_raw="")
+                for n in PHOBOS_FALLBACK_NODES
+            ]
         selected = [info for info in on_planet if info.name in current_set]
         others = [info for info in on_planet if info.name not in current_set]
         merged = selected + others

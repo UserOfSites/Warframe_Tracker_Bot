@@ -1,12 +1,18 @@
 """Guard rails around the curated planet list.
 
-The panel dropdowns are limited to 25 options, and adding a planet that
-warframestat doesn't ship nodes for (Phobos was the reason for this fix)
-produces an empty node selector that reads as broken. Tests below lock the
-curated list to a set of assertions that would catch the next regression.
+The panel dropdowns are limited to 25 options, and only planets whose nodes
+Titania can actually surface in fissures should be offered. The two
+non-obvious cases:
+
+* **Phobos** — kept in the list because its fissures are live and users
+  need to pin/block them, but its nodes aren't in warframestat's
+  ``/solnodes`` catalog. The panels merge in
+  :data:`PHOBOS_FALLBACK_NODES` when the catalog draws a blank.
+* **Kuva Fortress / Duviri** — dropped because they don't carry the
+  relic content Titania surfaces (Requiem-only / Circuit-only).
 """
 
-from titania.domain.node import STAR_CHART_PLANETS
+from titania.domain.node import PHOBOS_FALLBACK_NODES, STAR_CHART_PLANETS
 
 
 def test_planet_list_fits_discord_select_option_cap():
@@ -17,10 +23,11 @@ def test_planet_list_has_no_duplicates():
     assert len(set(STAR_CHART_PLANETS)) == len(STAR_CHART_PLANETS)
 
 
-def test_planet_list_excludes_phobos():
-    """Phobos was folded into Mars in warframestat's /solnodes — including
-    it produced an empty node dropdown when users picked it in the panel."""
-    assert "Phobos" not in STAR_CHART_PLANETS
+def test_planet_list_includes_phobos():
+    """Phobos has live fissures (see /pc/fissures — Stickney, Roche, …), so
+    users need to reach it in the panels even though /solnodes doesn't ship
+    Phobos nodes. The panels compensate via PHOBOS_FALLBACK_NODES."""
+    assert "Phobos" in STAR_CHART_PLANETS
 
 
 def test_planet_list_excludes_kuva_fortress():
@@ -42,6 +49,20 @@ def test_planet_list_includes_core_fissure_planets():
         "Eris", "Void", "Zariman",
     ):
         assert planet in STAR_CHART_PLANETS, f"missing core planet: {planet}"
+
+
+def test_phobos_fallback_covers_known_current_fissure_nodes():
+    """The two Phobos nodes seen in live fissures during triage (Stickney,
+    Roche) must appear in the fallback — those are our ground truth."""
+    for known in ("Stickney", "Roche"):
+        assert known in PHOBOS_FALLBACK_NODES, (
+            f"{known} is a real Phobos fissure node and must be reachable "
+            "via the fallback list"
+        )
+
+
+def test_phobos_fallback_fits_discord_select_option_cap():
+    assert len(PHOBOS_FALLBACK_NODES) <= 25
 
 
 def test_panels_share_the_same_planet_list():

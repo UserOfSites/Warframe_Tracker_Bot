@@ -10,7 +10,11 @@ from titania.domain.mission_type import (
     MissionType,
     parse_mission_type,
 )
-from titania.domain.node import STAR_CHART_PLANETS, NodeInfo
+from titania.domain.node import (
+    PHOBOS_FALLBACK_NODES,
+    STAR_CHART_PLANETS,
+    NodeInfo,
+)
 from titania.domain.subscription_filter import SubscriptionFilter
 from titania.domain.topic import FissureTopic, TOPIC_LABELS
 
@@ -453,12 +457,23 @@ class FilterPanel(discord.ui.View):
         for info in self._node_details.values():
             if info.planet.lower() != planet_lc:
                 continue
+            # A blank ``mission_type_raw`` means we don't know the mission
+            # type for that node (Phobos fallback entries land here). Treat
+            # unknown-type nodes as "always show" so the user can still pin
+            # them regardless of their mission-type allowlist.
             if (
                 effective_missions
+                and info.mission_type_raw
                 and info.mission_type_raw.lower() not in effective_missions
             ):
                 continue
             scoped.append(info.name)
+        # Phobos: warframestat's /solnodes has no entries for it, so seed
+        # the browser with the canonical node list. Fissures on Phobos are
+        # real (see /pc/fissures), users just can't reach them through the
+        # catalog.
+        if not scoped and planet_lc == "phobos":
+            scoped.extend(PHOBOS_FALLBACK_NODES)
         scoped.sort()
 
         selected = [n for n in scoped if n in self.current_filter.nodes]
