@@ -11,7 +11,7 @@ from titania.domain.mission_type import (
     MissionType,
     parse_mission_type,
 )
-from titania.domain.node import NodeInfo
+from titania.domain.node import STAR_CHART_PLANETS, NodeInfo
 from titania.services.guild_settings import GuildSettings
 
 if TYPE_CHECKING:
@@ -66,11 +66,9 @@ _CATEGORY_DESCRIPTIONS: dict[_Category, str] = {
 _STAR_EXCELLENT = "excellent"
 _STAR_GOOD = "good"
 
-_ALL_PLANETS: tuple[str, ...] = (
-    "Mercury", "Venus", "Earth", "Lua", "Mars", "Phobos", "Deimos", "Ceres",
-    "Jupiter", "Europa", "Saturn", "Uranus", "Neptune", "Pluto", "Sedna",
-    "Eris", "Kuva Fortress", "Void", "Zariman",
-)
+# Planets shown in the planet selector. Same source of truth as filter_panel;
+# see ``titania.domain.node.STAR_CHART_PLANETS`` for the curation rationale.
+_ALL_PLANETS: tuple[str, ...] = STAR_CHART_PLANETS
 
 # Mission types the operator may include. Railjack types (Skirmish, Volatile,
 # Orphix) are filtered out at the data layer regardless, so we hide them. We

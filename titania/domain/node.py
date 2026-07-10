@@ -13,3 +13,20 @@ class NodeInfo:
     name: str
     planet: str
     mission_type_raw: str
+
+
+# Planets shown in the panel selectors, in Star-Chart progression order.
+# Curated to planets that carry the fissure content Titania actually
+# surfaces — omissions:
+#   - ``Phobos``: warframestat's /solnodes no longer ships Phobos entries
+#     (Tharsis, the sole surviving node, is tagged "Mars" upstream).
+#   - ``Kuva Fortress``: only carries Requiem fissures, which are filtered
+#     out globally as not relic-relevant.
+#   - ``Duviri``: no regular fissure rotation, only the Circuit Steel Path
+#     content which we don't track.
+# Kept under 25 (Discord select-option cap) so it always fits a single row.
+STAR_CHART_PLANETS: tuple[str, ...] = (
+    "Mercury", "Venus", "Earth", "Lua", "Mars", "Deimos", "Ceres",
+    "Jupiter", "Europa", "Saturn", "Uranus", "Neptune", "Pluto", "Sedna",
+    "Eris", "Void", "Zariman",
+)

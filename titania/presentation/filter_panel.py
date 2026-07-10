@@ -10,7 +10,7 @@ from titania.domain.mission_type import (
     MissionType,
     parse_mission_type,
 )
-from titania.domain.node import NodeInfo
+from titania.domain.node import STAR_CHART_PLANETS, NodeInfo
 from titania.domain.subscription_filter import SubscriptionFilter
 from titania.domain.topic import FissureTopic, TOPIC_LABELS
 
@@ -21,13 +21,10 @@ log = logging.getLogger(__name__)
 
 _PANEL_TIMEOUT_SECONDS = 600
 
-# Planets shown in the planet selector. Capped at Discord's 25-option limit
-# and ordered roughly by Star Chart progression.
-_ALL_PLANETS: tuple[str, ...] = (
-    "Mercury", "Venus", "Earth", "Lua", "Mars", "Phobos", "Deimos", "Ceres",
-    "Jupiter", "Europa", "Saturn", "Uranus", "Neptune", "Pluto", "Sedna",
-    "Eris", "Kuva Fortress", "Void", "Zariman",
-)
+# Planets shown in the planet selector. Sourced from the shared curated list
+# (fissure-relevant, Star-Chart order) so both panels stay in sync when we
+# add/remove planets. See ``titania.domain.node.STAR_CHART_PLANETS``.
+_ALL_PLANETS: tuple[str, ...] = STAR_CHART_PLANETS
 
 # Dojoshare missions in practice — what the long-farm dojoshare nodes carry.
 _DOJOSHARE_MISSIONS: tuple[MissionType, ...] = (
