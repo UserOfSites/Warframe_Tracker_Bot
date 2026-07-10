@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 import discord
@@ -8,9 +9,23 @@ from titania.i18n.translator import Translator
 from titania.presentation.tables import humanize_remaining
 from titania.services.emoji_registry import EmojiRegistry
 
+log = logging.getLogger(__name__)
+
 _FIELD_VALUE_LIMIT = 1024
 _INVENTORY_FIELD_NAME = "Inventory"
 _INVENTORY_FIELD_CONT = "\u200b"
+
+# Discord embed hard limits used by the compact fallback.
+_DESCRIPTION_LIMIT = 4096
+_TOTAL_EMBED_LIMIT = 6000
+
+# Above this many items in inventory, switch from the two-column grid to a
+# compact "grouped list" description. Normal Baro visits ship 15-20 items;
+# TennoCon visits historically ship 50-100+ (returning inventory), which
+# blasts through Discord's 25-field / 6000-char embed limits under the grid
+# layout. 30 is a comfortable line: it covers TennoCon and any future
+# "returning items" event without derailing normal visits.
+_COMPACT_MODE_THRESHOLD = 30
 
 
 def _short_credits(c: int) -> str:
@@ -170,6 +185,139 @@ def _chunk_into_fields(blocks: list[str], limit: int) -> list[str]:
     return fields
 
 
+# --- compact mode (TennoCon Baro et al.) --------------------------------------
+
+# Order + label for the compact-mode category headers. Anything not matched
+# falls into ``_OTHER_CATEGORY`` at the bottom. Plain text (no Unicode
+# icons) — the renderer bolds the label itself for visual separation.
+_CATEGORY_ORDER: tuple[str, ...] = (
+    "Weapons",
+    "Mods",
+    "Relics",
+    "Cosmetics",
+    "Music",
+    "Other",
+)
+_OTHER_CATEGORY = "Other"
+
+_CATEGORY_PREFIXES: tuple[tuple[str, str], ...] = (
+    # Ordered — first match wins.
+    ("Weapon",         "Weapons"),
+    ("Primed Mod",     "Mods"),
+    ("Mod",            "Mods"),
+    ("Void Relic",     "Relics"),
+    ("Cosmetic",       "Cosmetics"),
+    ("Skin",           "Cosmetics"),
+    ("Ship Decoration","Cosmetics"),
+    ("Glyph",          "Cosmetics"),
+    ("Emote",          "Cosmetics"),
+    ("Sigil",          "Cosmetics"),
+    ("Syandana",       "Cosmetics"),
+    ("Somachord",      "Music"),
+)
+
+
+def _categorize(item: EnrichedBaroItem) -> str:
+    t = (item.item_type or "").strip()
+    if not t:
+        return _OTHER_CATEGORY
+    for prefix, category in _CATEGORY_PREFIXES:
+        if t.startswith(prefix):
+            return category
+    return _OTHER_CATEGORY
+
+
+def _days_since(item: EnrichedBaroItem, now: datetime) -> int | None:
+    if item.last_appearance is None:
+        return None
+    return (now.date() - item.last_appearance).days
+
+
+def _rarity_sort_key(item: EnrichedBaroItem, now: datetime) -> tuple:
+    """Rarer returns first: known items with a long gap, then known items with
+    a short gap, then never-before-seen at the end."""
+    days = _days_since(item, now)
+    if days is not None:
+        return (0, -days, item.name.lower())
+    if item.wiki_known and item.total_appearances >= 1:
+        return (1, 0, item.name.lower())  # "first appearance" band
+    if item.wiki_known:
+        return (2, 0, item.name.lower())  # "always available" band
+    return (3, 0, item.name.lower())      # unknown
+
+
+def _short_days(days: int) -> str:
+    if days >= 365:
+        y, d = divmod(days, 365)
+        return f"{y}y{d}d" if d else f"{y}y"
+    if days >= 60:
+        mo = days // 30
+        return f"{mo}mo"
+    return f"{days}d"
+
+
+def _compact_line(item: EnrichedBaroItem, now: datetime) -> str:
+    """Single-line dense format: ``• Name · 525d · 96d ago``.
+
+    Compared to the grid renderer's two-line block, this drops the icon,
+    the credit chip (redundant with ducats for buying decisions), and the
+    ``|`` separator — the goal is fitting 60-100 items in a single embed
+    description without blowing the 4096-char limit."""
+    parts = [f"**{item.name}**"]
+    if item.ducats:
+        parts.append(f"{item.ducats}d")
+    days = _days_since(item, now)
+    if days is not None:
+        parts.append(f"{_short_days(days)} ago")
+    elif item.wiki_known and item.total_appearances == 0:
+        parts.append("always")
+    elif item.wiki_known:
+        parts.append("first")
+    return "• " + " · ".join(parts)
+
+
+def _render_compact_body(board: BaroBoard, now: datetime) -> str:
+    """Full inventory grouped by category, one line per item, sorted by
+    rarity within each category."""
+    grouped: dict[str, list[EnrichedBaroItem]] = {c: [] for c in _CATEGORY_ORDER}
+    for item in board.enriched_inventory:
+        grouped[_categorize(item)].append(item)
+
+    parts: list[str] = [f"**{len(board.enriched_inventory)} items on offer**"]
+    for category in _CATEGORY_ORDER:
+        bucket = grouped[category]
+        if not bucket:
+            continue
+        bucket.sort(key=lambda it: _rarity_sort_key(it, now))
+        parts.append("")  # blank line separator
+        parts.append(f"__{category}__ ({len(bucket)})")
+        parts.extend(_compact_line(it, now) for it in bucket)
+    return "\n".join(parts)
+
+
+def _truncate_to_fit(header: str, body: str) -> tuple[str, int]:
+    """Fit ``header + body`` into Discord's description limit. Returns the
+    (possibly-truncated) combined string and the count of dropped lines.
+    Truncation is line-aware so we never cut mid-item."""
+    combined = f"{header}\n\n{body}"
+    if len(combined) <= _DESCRIPTION_LIMIT:
+        return combined, 0
+    # Trim body lines from the tail until it fits, then append a marker.
+    lines = body.split("\n")
+    dropped = 0
+    footer_reserve = 60  # room for the truncation notice
+    while lines and len(f"{header}\n\n" + "\n".join(lines)) + footer_reserve > _DESCRIPTION_LIMIT:
+        lines.pop()
+        dropped += 1
+    body_trimmed = "\n".join(lines)
+    notice = f"\n\n_…and {dropped} more item(s) — embed limit reached._"
+    return f"{header}\n\n{body_trimmed}{notice}", dropped
+
+
+def _use_compact_mode(board: BaroBoard) -> bool:
+    return len(board.enriched_inventory) > _COMPACT_MODE_THRESHOLD
+
+
 def build_vendors_embed(
     board: BaroBoard,
     translator: Translator,
@@ -191,7 +339,23 @@ def build_vendors_embed(
         color=discord.Color.gold(),
         timestamp=board.generated_at,
     )
-    embed.description = _render_baro_header(board, translator)
+    header = _render_baro_header(board, translator)
+    embed.description = header
+    if board.state.is_present and _use_compact_mode(board):
+        # TennoCon-style bulk inventory: the grid renderer would blow past
+        # both the 25-field and 6000-char embed caps. Fall back to a dense
+        # description-only layout grouped by category.
+        body = _render_compact_body(board, datetime.now(timezone.utc))
+        combined, dropped = _truncate_to_fit(header, body)
+        if dropped:
+            log.warning(
+                "compact Baro embed truncated: %d of %d items dropped to fit description",
+                dropped,
+                len(board.enriched_inventory),
+            )
+        embed.description = combined
+        embed.set_footer(text=translator.t("embed.footer.updated"))
+        return embed
     if board.state.is_present:
         blocks = _render_inventory_blocks(board, registry, item_icons or {})
         left_blocks, right_blocks = _split_blocks_for_two_columns(blocks)
