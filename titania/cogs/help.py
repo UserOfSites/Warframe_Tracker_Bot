@@ -43,8 +43,11 @@ _SETTINGS_COMMANDS = (
 _GENERAL_COMMANDS = (
     "**`/fissures`** — Show the currently-active fissures right now (one-off, "
     "no tracker).\n"
-    "**`/vendors baro`** — Show Baro Ki'Teer's current status (countdown or "
-    "live inventory).\n"
+    "**`/vendors baro`** — Show the vendors summary: Baro Ki'Teer's arrival "
+    "or relay, Teshin's weekly Steel Path Honors reward, and the current "
+    "Archon Hunt shard.\n"
+    "**`/vendors inventory`** — Privately show Baro Ki'Teer's full inventory "
+    "(ephemeral — only you see it).\n"
     "**`/ping`** — Check that I'm alive and view round-trip latency."
 )
 

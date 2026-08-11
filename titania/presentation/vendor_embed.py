@@ -5,6 +5,7 @@ import discord
 
 from titania.data.baro.history import humanize_since
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
+from titania.domain.vendors import TESHIN_WEEKLY_ITEM, ArchonShard
 from titania.i18n.translator import Translator
 from titania.presentation.tables import humanize_remaining
 from titania.services.emoji_registry import EmojiRegistry
@@ -318,14 +319,14 @@ def _use_compact_mode(board: BaroBoard) -> bool:
     return len(board.enriched_inventory) > _COMPACT_MODE_THRESHOLD
 
 
-def build_vendors_embed(
+def build_baro_inventory_embed(
     board: BaroBoard,
     translator: Translator,
     registry: EmojiRegistry,
     item_icons: dict[str, str] | None = None,
 ) -> discord.Embed:
-    """Currently single-vendor (Baro). Designed for new sections (Teshin,
-    Varzia, …) to be appended as the project grows, all in one embed.
+    """Baro's **full inventory** embed — shown ephemerally when a user clicks
+    the inventory link on the summary embed (``/vendors inventory``).
 
     Inventory renders as a **two-column** grid of ``inline=True`` fields.
     Items with a history chip (weapons, mods, relics) take two lines per
@@ -335,7 +336,7 @@ def build_vendors_embed(
     rendering as exactly two visible columns instead of three.
     """
     embed = discord.Embed(
-        title="Vendors",
+        title="Baro Ki'Teer — Inventory",
         color=discord.Color.gold(),
         timestamp=board.generated_at,
     )
@@ -384,5 +385,76 @@ def build_vendors_embed(
                     value=_INVENTORY_FIELD_CONT,
                     inline=True,
                 )
+    embed.set_footer(text=translator.t("embed.footer.updated"))
+    return embed
+
+
+def _render_baro_summary(
+    board: BaroBoard,
+    inventory_mention: str | None,
+) -> str:
+    """Baro's line(s) on the multi-vendor summary embed.
+
+    - **Absent:** a single line — where he'll appear and (via Discord's native
+      relative timestamp) in how long: ``Baro Ki'Teer — Orcus Relay · Arrives
+      in 5 days``.
+    - **Present:** the relay he's in plus a clickable link that opens the
+      ``/vendors inventory`` command, whose reply is an ephemeral (dismissible)
+      inventory listing just for the clicking user.
+    """
+    state = board.state
+    if not state.is_present:
+        arrives = f"<t:{int(state.activation.timestamp())}:R>"
+        return f"🛒 **Baro Ki'Teer** — {state.location} · Arrives {arrives}"
+    leaves = f"<t:{int(state.expiry.timestamp())}:R>"
+    link = inventory_mention or "`/vendors inventory`"
+    return (
+        f"🛒 **Baro Ki'Teer** — here now 📍 {state.location} · Leaves {leaves}\n"
+        f"🔎 See his full inventory (only you'll see it): {link}"
+    )
+
+
+def _render_archon_value(archon: ArchonShard | None) -> str:
+    if archon is None:
+        return "_Unavailable right now._"
+    return f"{archon.emoji} **Archon {archon.archon}** → {archon.shard_name} ({archon.color})"
+
+
+def build_vendors_embed(
+    board: BaroBoard,
+    translator: Translator,
+    registry: EmojiRegistry,
+    *,
+    archon: ArchonShard | None = None,
+    teshin_item: str = TESHIN_WEEKLY_ITEM,
+    inventory_mention: str | None = None,
+) -> discord.Embed:
+    """Multi-vendor **summary** embed — the one posted to tracked channels and
+    returned by ``/vendors baro``.
+
+    Rolls up three vendors at a glance:
+
+    - **Baro Ki'Teer** — arrival countdown when absent; relay + a clickable
+      link to the ephemeral inventory when present (the full item grid lives in
+      :func:`build_baro_inventory_embed`, not here).
+    - **Teshin** — the current static weekly Steel Path Honors reward.
+    - **Archon Hunt** — the current Archon and the shard colour it awards.
+    """
+    embed = discord.Embed(
+        title="Vendors",
+        color=discord.Color.gold(),
+        timestamp=board.generated_at,
+    )
+    embed.description = _render_baro_summary(board, inventory_mention)
+    embed.add_field(
+        name="⚔️ Teshin · Steel Path Honors",
+        value=teshin_item,
+        inline=True,
+    )
+    embed.add_field(
+        name="🦉 Archon Hunt",
+        value=_render_archon_value(archon),
+        inline=True,
+    )
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed

@@ -8,7 +8,10 @@ from titania.domain.era import Era
 from titania.domain.railjack import is_railjack
 from titania.i18n.translator import Translator
 from titania.presentation.embeds import build_fissure_embed
-from titania.presentation.vendor_embed import build_vendors_embed
+from titania.presentation.vendor_embed import (
+    build_baro_inventory_embed,
+    build_vendors_embed,
+)
 from titania.storage.tracked_channels_repo import TrackedChannel
 
 if TYPE_CHECKING:
@@ -144,20 +147,34 @@ class FissureRefresher:
         settings = await self._bot.settings_repo.get(guild_id)
         translator = Translator(settings.locale)
         board = await self._bot.fissure_service.board_for_guild(guild_id)
-        # Stateless — pulls current UTC time and returns the current+next
-        # sculpture. Recomputed every tick so the embed always shows the
-        # right hour even if a refresh coincides with a rotation boundary.
-        ayatan_slot = self._bot.ayatan_service.current_slot()
         return build_fissure_embed(
             board,
             translator,
             self._bot.emoji_registry,
             excellent_nodes=settings.excellent_nodes,
             good_nodes=settings.good_nodes,
-            ayatan_slot=ayatan_slot,
         )
 
     async def build_vendors_embed(self, guild_id: int | None) -> discord.Embed:
+        """Multi-vendor **summary** embed (tracked channels + ``/vendors baro``).
+        Cheap: no per-item emoji uploads — the full item grid is built lazily
+        by :meth:`build_baro_inventory_embed` only when a user asks for it."""
+        settings = await self._bot.settings_repo.get(guild_id)
+        translator = Translator(settings.locale)
+        board = await self._bot.baro_service.board()
+        archon = await self._bot.archon_service.current()
+        return build_vendors_embed(
+            board,
+            translator,
+            self._bot.emoji_registry,
+            archon=archon,
+            inventory_mention=self._bot.command_mention("vendors inventory"),
+        )
+
+    async def build_baro_inventory_embed(self, guild_id: int | None) -> discord.Embed:
+        """Baro's full inventory embed — served ephemerally by
+        ``/vendors inventory``. Uploads item icons on demand (only when Baro is
+        actually present), which is why it's kept off the 30s refresh path."""
         settings = await self._bot.settings_repo.get(guild_id)
         translator = Translator(settings.locale)
         board = await self._bot.baro_service.board()
@@ -171,7 +188,7 @@ class FissureRefresher:
                 )
                 if markup:
                     item_icons[entry.image_name] = markup
-        return build_vendors_embed(
+        return build_baro_inventory_embed(
             board, translator, self._bot.emoji_registry, item_icons
         )
 

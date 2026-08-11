@@ -48,6 +48,10 @@ class CachedDataSource:
         self._void_trader_valid_until: datetime | None = None
         self._void_trader_lock = asyncio.Lock()
 
+        self._archon_hunt: dict[str, Any] | None = None
+        self._archon_hunt_valid_until: datetime | None = None
+        self._archon_hunt_lock = asyncio.Lock()
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (
@@ -125,6 +129,32 @@ class CachedDataSource:
             self._void_trader_valid_until = (
                 self._next_void_trader_transition(fresh, now)
                 or now + self._fallback
+            )
+            return dict(fresh)
+
+    async def fetch_archon_hunt(self) -> dict[str, Any]:
+        # Archon Hunt rotates weekly; reuse the void-trader transition logic
+        # (cache until the current hunt's ``expiry``) so we hit upstream at
+        # most once per rotation even though the refresher polls every tick.
+        now = datetime.now(timezone.utc)
+        if (
+            self._archon_hunt is not None
+            and self._archon_hunt_valid_until is not None
+            and now < self._archon_hunt_valid_until
+        ):
+            return dict(self._archon_hunt)
+        async with self._archon_hunt_lock:
+            now = datetime.now(timezone.utc)
+            if (
+                self._archon_hunt is not None
+                and self._archon_hunt_valid_until is not None
+                and now < self._archon_hunt_valid_until
+            ):
+                return dict(self._archon_hunt)
+            fresh = await self._inner.fetch_archon_hunt()
+            self._archon_hunt = fresh
+            self._archon_hunt_valid_until = (
+                self._next_void_trader_transition(fresh, now) or now + self._fallback
             )
             return dict(fresh)
 

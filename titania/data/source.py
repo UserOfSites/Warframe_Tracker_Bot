@@ -32,6 +32,11 @@ class WarframeDataSource(Protocol):
         (list, empty when Baro isn't here)."""
         ...
 
+    async def fetch_archon_hunt(self) -> dict[str, Any]:
+        """Raw Archon-Hunt payload. The only field we read is ``boss`` (the
+        current Archon's name); the ArchonService maps it to a shard colour."""
+        ...
+
     async def aclose(self) -> None: ...
 
     async def __aenter__(self) -> "WarframeDataSource":

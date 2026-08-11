@@ -87,6 +87,12 @@ class WarframestatSource:
         resp.raise_for_status()
         return resp.json()
 
+    async def fetch_archon_hunt(self) -> dict:
+        url = f"{self._base_url}/{self._platform}/archonHunt"
+        resp = await self._get_with_retry(url, params={"language": "en"})
+        resp.raise_for_status()
+        return resp.json()
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # solnodes lists every node DE has shipped — keyed `SolNode*` for
         # regular missions and `CrewBattleNode*` for Railjack. We expose only

@@ -39,6 +39,12 @@ class InMemoryFakeSource:
             "inventory": [],
         }
 
+    async def fetch_archon_hunt(self) -> dict:
+        # Static fixture: Boreal is up, so the vendors embed shows the blue
+        # (Azure) Archon Shard. Tests needing a different Archon call
+        # ArchonService with their own source.
+        return {"boss": "Archon Boreal"}
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # Tests + local dev: a small but realistic stand-in. Returns the union
         # of nodes referenced by the fixture, the default dojoshare list, and a

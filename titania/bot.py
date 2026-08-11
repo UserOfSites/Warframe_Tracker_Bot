@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 
 from titania.data.baro.history import BaroHistoryClient
-from titania.services.ayatan_service import AyatanService
+from titania.services.archon_service import ArchonService
 from titania.services.baro_service import BaroService
 from titania.services.emoji_registry import EmojiRegistry, ItemEmojiCache
 from titania.services.fissure_service import FissureService
@@ -64,7 +64,10 @@ class TitaniaBot(commands.Bot):
         )
         self.baro_history = BaroHistoryClient()
         self.baro_service = BaroService(data_source, self.baro_history)
-        self.ayatan_service = AyatanService()
+        self.archon_service = ArchonService(data_source)
+        # Filled after the command tree syncs; used to render clickable
+        # slash-command mentions (``</vendors inventory:ID>``) inside embeds.
+        self._app_command_ids: dict[str, int] = {}
         self.emoji_registry = EmojiRegistry()
         self.item_emoji_cache = ItemEmojiCache()
         self.notifier = FissureNotifier(self)
@@ -76,12 +79,25 @@ class TitaniaBot(commands.Bot):
             await self.load_extension(cog)
             log.info("loaded cog %s", cog)
         synced = await self.tree.sync()
+        self._app_command_ids = {c.name: c.id for c in synced}
         log.info("synced %d application commands", len(synced))
         await self.emoji_registry.sync(self)
         # The registry is populated now, so the reaction subscriber can build
         # its emoji-id → topic lookup table for incoming reaction events.
         self.reaction_subscriber.reload_emoji_map()
         self.refresher.start()
+
+    def command_mention(self, qualified_name: str) -> str | None:
+        """``"vendors inventory"`` → ``"</vendors inventory:1234>"``, a native
+        clickable slash-command link. Subcommands mention against their root
+        group's id. Returns ``None`` before the tree has synced (or if the
+        root command is unknown) so callers can fall back to plain text.
+        """
+        root = qualified_name.split(" ", 1)[0]
+        cmd_id = self._app_command_ids.get(root)
+        if cmd_id is None:
+            return None
+        return f"</{qualified_name}:{cmd_id}>"
 
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
         await self.reaction_subscriber.handle_add(payload)

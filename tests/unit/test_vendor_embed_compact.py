@@ -26,7 +26,7 @@ from titania.presentation.vendor_embed import (
     _compact_line,
     _rarity_sort_key,
     _short_days,
-    build_vendors_embed,
+    build_baro_inventory_embed,
 )
 from titania.services.emoji_registry import EmojiRegistry
 
@@ -177,7 +177,7 @@ def test_compact_line_marks_always_available_and_first():
 
 def test_below_threshold_uses_grid_layout(en, registry):
     items = [_item(f"Item {i}") for i in range(_COMPACT_MODE_THRESHOLD)]
-    embed = build_vendors_embed(_board(items), en, registry)
+    embed = build_baro_inventory_embed(_board(items), en, registry)
     # Grid mode renders items as inline fields — several of them.
     assert len(embed.fields) > 0
     # Compact mode injects the "N items on offer" header; grid mode does not.
@@ -186,7 +186,7 @@ def test_below_threshold_uses_grid_layout(en, registry):
 
 def test_above_threshold_switches_to_compact(en, registry):
     items = [_item(f"Item {i}") for i in range(_COMPACT_MODE_THRESHOLD + 1)]
-    embed = build_vendors_embed(_board(items), en, registry)
+    embed = build_baro_inventory_embed(_board(items), en, registry)
     # Compact mode: no inventory fields, everything lives in the description.
     assert not any(f.name and "Inventory" in f.name for f in embed.fields)
     assert "on offer" in (embed.description or "")
@@ -200,7 +200,7 @@ def test_compact_mode_groups_by_category_in_declared_order(en, registry):
         _item("Primed Fury", item_type="Primed Mod (Melee)"),
         *[_item(f"Cosmetic {i}", item_type="Cosmetic (Armor)") for i in range(_COMPACT_MODE_THRESHOLD)],
     ]
-    embed = build_vendors_embed(_board(items), en, registry)
+    embed = build_baro_inventory_embed(_board(items), en, registry)
     desc = embed.description or ""
     # Header labels appear in the order defined by _CATEGORY_ORDER.
     positions = [(cat, desc.find(cat)) for cat in _CATEGORY_ORDER if cat in desc]
@@ -227,7 +227,7 @@ def test_massive_inventory_stays_within_description_limit(en, registry):
         )
         for i in range(200)
     ]
-    embed = build_vendors_embed(_board(items), en, registry)
+    embed = build_baro_inventory_embed(_board(items), en, registry)
     assert len(embed.description or "") <= 4096
     # Truncation notice fires when we actually drop items.
     if "…and " in (embed.description or ""):
@@ -245,7 +245,7 @@ def test_reasonable_tennocon_size_fits_without_truncation(en, registry):
         )
         for i in range(60)
     ]
-    embed = build_vendors_embed(_board(items), en, registry)
+    embed = build_baro_inventory_embed(_board(items), en, registry)
     desc = embed.description or ""
     assert len(desc) <= 4096
     assert "…and" not in desc  # no truncation notice for this size
@@ -267,7 +267,7 @@ def test_absent_baro_shows_countdown_regardless_of_threshold(en, registry):
         inventory=(),
     )
     board = BaroBoard(state=state, enriched_inventory=(), generated_at=NOW)
-    embed = build_vendors_embed(board, en, registry)
+    embed = build_baro_inventory_embed(board, en, registry)
     assert "Arrives" in (embed.description or "")
     # No compact-mode header when there's nothing to render.
     assert "on offer" not in (embed.description or "")

@@ -33,13 +33,23 @@ class Vendors(
 ):
     @app_commands.command(
         name="baro",
-        description="Show Baro Ki'Teer's status (countdown or inventory).",
+        description="Show the vendors summary (Baro, Teshin, Archon Hunt).",
     )
     async def baro(self, interaction: discord.Interaction) -> None:
         bot: TitaniaBot = interaction.client  # type: ignore[assignment]
         await interaction.response.defer()
         embed = await bot.refresher.build_vendors_embed(interaction.guild_id)
         await interaction.followup.send(embed=embed)
+
+    @app_commands.command(
+        name="inventory",
+        description="Show Baro Ki'Teer's full inventory (only you can see it).",
+    )
+    async def inventory(self, interaction: discord.Interaction) -> None:
+        bot: TitaniaBot = interaction.client  # type: ignore[assignment]
+        await interaction.response.defer(ephemeral=True)
+        embed = await bot.refresher.build_baro_inventory_embed(interaction.guild_id)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(
         name="track",
