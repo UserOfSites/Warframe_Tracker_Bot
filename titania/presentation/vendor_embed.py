@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import discord
 
 from titania.data.baro.history import humanize_since
+from titania.domain.alerts import NotableAlert
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
 from titania.domain.vendors import (
     ArchonShard,
@@ -454,6 +455,17 @@ def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str
     return f"{header}\n{icon} {shard.shard_name} ({shard.color})"
 
 
+def _render_alerts_value(alerts: list[NotableAlert]) -> str:
+    """Only notable alerts (potatoes / Forma / Exilus adapters) reach here — the
+    caller omits the whole block when the list is empty."""
+    lines = ["🚨 **Alerts**"]
+    for a in alerts:
+        mt = f" ({a.mission_type})" if a.mission_type else ""
+        ts = f"<t:{int(a.expiry.timestamp())}:R>"
+        lines.append(f"⚠️ **{a.reward}** — {a.node}{mt} · ends {ts}")
+    return "\n".join(lines)
+
+
 def build_vendors_embed(
     board: BaroBoard,
     translator: Translator,
@@ -462,6 +474,7 @@ def build_vendors_embed(
     archon: ArchonShard | None = None,
     teshin: TeshinReward | None = None,
     shiny_treasures: ShardOffer | None = None,
+    alerts: list[NotableAlert] | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -476,9 +489,11 @@ def build_vendors_embed(
     - **Archon Hunt** — the current Archon (fetched) and the shard it awards.
     - **Bird 3 (Shiny Treasures)** — a separate shard offering (unrelated to the
       Archon Hunt) on its own weekly rotation.
+    - **Alerts** — appended only when a notable alert is live (Orokin Reactor /
+      Catalyst, Forma, Exilus adapter); omitted entirely otherwise.
 
-    The four vendors render as a **vertical list** in the description (one
-    block each), not a column grid.
+    The vendors render as a **vertical list** in the description (one block
+    each), not a column grid.
 
     ``teshin`` / ``shiny_treasures`` default to the current week's rotation
     entry; callers (tests) may inject a specific one for determinism.
@@ -496,6 +511,10 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
+    # Alerts ride along only when a notable reward is up (potato / Forma /
+    # Exilus adapter) — otherwise the block is omitted entirely.
+    if alerts:
+        sections.append(_render_alerts_value(alerts))
     # Single newline between blocks (not a blank line) keeps the list compact.
     embed.description = "\n\n".join(sections)
     embed.set_footer(text=translator.t("embed.footer.updated"))

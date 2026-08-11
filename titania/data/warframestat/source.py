@@ -93,6 +93,13 @@ class WarframestatSource:
         resp.raise_for_status()
         return resp.json()
 
+    async def fetch_alerts(self) -> list[dict]:
+        url = f"{self._base_url}/{self._platform}/alerts"
+        resp = await self._get_with_retry(url, params={"language": "en"})
+        resp.raise_for_status()
+        payload = resp.json()
+        return payload if isinstance(payload, list) else []
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # solnodes lists every node DE has shipped — keyed `SolNode*` for
         # regular missions and `CrewBattleNode*` for Railjack. We expose only

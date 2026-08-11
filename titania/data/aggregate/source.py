@@ -62,6 +62,13 @@ class AggregateSource:
         resp.raise_for_status()
         return resp.json().get("archonHunt", {})
 
+    async def fetch_alerts(self) -> list[dict]:
+        url = f"{self._base_url}/{self._platform}"
+        resp = await self._client.get(url, params={"language": "en"})
+        resp.raise_for_status()
+        alerts = resp.json().get("alerts", [])
+        return alerts if isinstance(alerts, list) else []
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # The aggregate endpoint doesn't ship the node catalog; reuse solnodes.
         url = f"{self._base_url}/solnodes"

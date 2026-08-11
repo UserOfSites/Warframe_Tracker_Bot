@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from titania.data.baro.history import BaroHistoryClient
+from titania.services.alert_service import AlertService
 from titania.services.archon_service import ArchonService
 from titania.services.baro_service import BaroService
 from titania.services.emoji_registry import EmojiRegistry, ItemEmojiCache
@@ -65,6 +66,7 @@ class TitaniaBot(commands.Bot):
         self.baro_history = BaroHistoryClient()
         self.baro_service = BaroService(data_source, self.baro_history)
         self.archon_service = ArchonService(data_source)
+        self.alert_service = AlertService(data_source)
         # Filled after the command tree syncs; used to render clickable
         # slash-command mentions (``</vendors inventory:ID>``) inside embeds.
         self._app_command_ids: dict[str, int] = {}

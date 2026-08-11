@@ -45,6 +45,11 @@ class InMemoryFakeSource:
         # ArchonService with their own source.
         return {"boss": "Archon Boreal"}
 
+    async def fetch_alerts(self) -> list[dict]:
+        # No alerts in the fixture; tests that need them build their own raw
+        # payload and call notable_alerts directly.
+        return []
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # Tests + local dev: a small but realistic stand-in. Returns the union
         # of nodes referenced by the fixture, the default dojoshare list, and a

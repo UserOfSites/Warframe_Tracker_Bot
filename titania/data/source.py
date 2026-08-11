@@ -37,6 +37,11 @@ class WarframeDataSource(Protocol):
         current Archon's name); the ArchonService maps it to a shard colour."""
         ...
 
+    async def fetch_alerts(self) -> list[dict[str, Any]]:
+        """Raw alerts payload (list). Each entry has ``mission`` (with its
+        ``reward``) and ``expiry``; the alerts domain filters to notable-only."""
+        ...
+
     async def aclose(self) -> None: ...
 
     async def __aenter__(self) -> "WarframeDataSource":

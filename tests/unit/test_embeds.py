@@ -145,6 +145,58 @@ def test_next_resets_split_into_two_inline_fields(now, en, registry):
     assert "<:lith_relic:1>" in (sp_field.value or "")
 
 
+def _defence_board(now: datetime, node: str, is_steel_path: bool) -> FissureBoard:
+    return FissureBoard(
+        normal=[],
+        steel_path=[],
+        dojoshare=[],
+        next_resets=[],
+        generated_at=now,
+        defences=[
+            _fissure(Era.LITH, MissionType.DEFENSE, node, "Uranus",
+                     now + timedelta(minutes=20), is_steel_path=is_steel_path),
+        ],
+    )
+
+
+def _defences_line(desc: str) -> str:
+    """The single fissure row under the Defences section header."""
+    lines = desc.split("\n")
+    idx = next(i for i, ln in enumerate(lines) if ln.strip("* ") == "Defences")
+    return lines[idx + 1]
+
+
+def test_steel_path_defence_row_shows_steel_essence_marker(now, en, registry):
+    """A Steel Path Defense fissure must carry the steel-path (Steel Essence)
+    marker before the name, so SP entries are distinguishable in the mixed
+    Normal+SP Defences section."""
+    embed = build_fissure_embed(_defence_board(now, "Stephano", True), en, registry)
+    row = _defences_line(embed.description or "")
+    assert "<:steel_path:6>" in row
+    # The marker leads the row, ahead of the era name and node.
+    assert row.index("<:steel_path:6>") < row.index("Stephano")
+
+
+def test_normal_defence_row_has_no_steel_essence_marker(now, en, registry):
+    embed = build_fissure_embed(_defence_board(now, "Stephano", False), en, registry)
+    row = _defences_line(embed.description or "")
+    assert "Stephano" in row
+    assert "<:steel_path:6>" not in row
+
+
+def test_quality_stars_apply_to_defences_section(now, en, registry):
+    excellent = build_fissure_embed(
+        _defence_board(now, "Stephano", True), en, registry,
+        excellent_nodes=frozenset({"Stephano"}),
+    )
+    assert "🌟" in _defences_line(excellent.description or "")
+    good = build_fissure_embed(
+        _defence_board(now, "Hydron", False), en, registry,
+        good_nodes=frozenset({"Hydron"}),
+    )
+    assert "⭐" in _defences_line(good.description or "")
+
+
 def test_registry_missing_emoji_falls_back_to_era_text(now, en):
     empty = EmojiRegistry()
     embed = build_fissure_embed(_board(now), en, empty)

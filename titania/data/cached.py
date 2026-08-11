@@ -52,6 +52,10 @@ class CachedDataSource:
         self._archon_hunt_valid_until: datetime | None = None
         self._archon_hunt_lock = asyncio.Lock()
 
+        self._alerts: list[dict[str, Any]] | None = None
+        self._alerts_valid_until: datetime | None = None
+        self._alerts_lock = asyncio.Lock()
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (
@@ -157,6 +161,48 @@ class CachedDataSource:
                 self._next_void_trader_transition(fresh, now) or now + self._fallback
             )
             return dict(fresh)
+
+    async def fetch_alerts(self) -> list[dict[str, Any]]:
+        # Cache until the soonest alert expires (like fissures); fall back to the
+        # configured TTL when there are no dated alerts so a transient empty
+        # response doesn't hammer upstream.
+        now = datetime.now(timezone.utc)
+        if (
+            self._alerts is not None
+            and self._alerts_valid_until is not None
+            and now < self._alerts_valid_until
+        ):
+            return list(self._alerts)
+        async with self._alerts_lock:
+            now = datetime.now(timezone.utc)
+            if (
+                self._alerts is not None
+                and self._alerts_valid_until is not None
+                and now < self._alerts_valid_until
+            ):
+                return list(self._alerts)
+            fresh = await self._inner.fetch_alerts()
+            self._alerts = fresh
+            self._alerts_valid_until = (
+                self._earliest_alert_expiry(fresh, now) or now + self._fallback
+            )
+            return list(fresh)
+
+    def _earliest_alert_expiry(
+        self, alerts: list[dict[str, Any]], now: datetime
+    ) -> datetime | None:
+        expiries: list[datetime] = []
+        for a in alerts or []:
+            raw = a.get("expiry") if isinstance(a, dict) else None
+            if not isinstance(raw, str):
+                continue
+            try:
+                dt = datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
+            except (ValueError, AttributeError):
+                continue
+            if dt > now:
+                expiries.append(dt)
+        return min(expiries) if expiries else None
 
     def _next_void_trader_transition(
         self, payload: dict[str, Any], now: datetime
