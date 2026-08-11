@@ -150,6 +150,16 @@ def build_fissure_embed(
             good_nodes=good_nodes,
         ),
         _render_section(
+            translator.t("embed.section.defences"),
+            board.defences,
+            board.generated_at,
+            translator,
+            registry,
+            translator.t("embed.empty.defences"),
+            excellent_nodes=excellent_nodes,
+            good_nodes=good_nodes,
+        ),
+        _render_section(
             translator.t("embed.section.dojoshare"),
             board.dojoshare,
             board.generated_at,

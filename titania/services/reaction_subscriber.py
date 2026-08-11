@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 _TOPIC_BY_EMOJI_KEY: dict[str, FissureTopic] = {
     "tenno": FissureTopic.NORMAL_FAST,
     "steel_path": FissureTopic.SP_FAST,
+    # No dedicated asset — resolves to the 🛡️ Unicode fallback below.
+    "defence": FissureTopic.DEFENCES,
     "clan_xp": FissureTopic.DOJOSHARE,
     "omnia_relic": FissureTopic.SP_TUVUL_CASCADE,
 }
@@ -28,6 +30,7 @@ _TOPIC_BY_EMOJI_KEY: dict[str, FissureTopic] = {
 _FALLBACK_UNICODE: dict[FissureTopic, str] = {
     FissureTopic.NORMAL_FAST: "⚡",
     FissureTopic.SP_FAST: "⚔️",
+    FissureTopic.DEFENCES: "🛡️",
     FissureTopic.DOJOSHARE: "🏯",
     FissureTopic.SP_TUVUL_CASCADE: "🌀",
 }
@@ -99,6 +102,28 @@ class ReactionSubscriber:
                 return
             except discord.HTTPException as e:
                 log.warning("seed reaction failed for %s: %s", topic.value, e)
+
+    async def reseed_tracked_messages(self) -> None:
+        """Add any missing topic reactions to every existing tracked message.
+
+        Called once on startup so a newly-added topic (e.g. Defences) shows up
+        on trackers that were posted before it existed — **without** deleting
+        and re-posting the message. ``add_reaction`` is idempotent, so already-
+        present reactions are no-ops; Discord appends the new one to the end of
+        the reaction row. Best-effort: unreachable channels/messages are
+        skipped."""
+        for tc in await self._bot.tracked_repo.list_all():
+            try:
+                channel = (
+                    self._bot.get_channel(tc.channel_id)
+                    or await self._bot.fetch_channel(tc.channel_id)
+                )
+                if not isinstance(channel, discord.abc.Messageable):
+                    continue
+                message = await channel.fetch_message(tc.message_id)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                continue
+            await self.seed_reactions(message)
 
     def _topic_for_emoji(self, emoji: discord.PartialEmoji) -> FissureTopic | None:
         if emoji.id is not None:

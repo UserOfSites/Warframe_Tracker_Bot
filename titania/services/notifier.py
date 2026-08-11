@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from titania.domain.fissure import Fissure
-from titania.domain.mission_type import DEFAULT_DOJOSHARE_NODES
+from titania.domain.mission_type import DEFAULT_DEFENCE_NODES, DEFAULT_DOJOSHARE_NODES
 from titania.domain.subscription_filter import SubscriptionFilter
 from titania.domain.topic import FissureTopic, fissure_matches_topic
 from titania.presentation.notification_embed import (
@@ -195,7 +195,9 @@ class FissureNotifier:
             matched = [
                 f
                 for f in all_fissures
-                if fissure_matches_topic(f, topic, DEFAULT_DOJOSHARE_NODES)
+                if fissure_matches_topic(
+                    f, topic, DEFAULT_DOJOSHARE_NODES, DEFAULT_DEFENCE_NODES
+                )
                 and (filt.is_unrestricted or filt.matches(f))
             ]
             if matched:

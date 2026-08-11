@@ -12,6 +12,10 @@ class GuildSettings:
     pinned_nodes: frozenset[str]
     dojoshare_nodes: frozenset[str]
     locale: str
+    # Curated Defense-mission nodes promoted to the tracker's "Defences"
+    # section (Normal + Steel Path). Defaulted so older call sites that build
+    # GuildSettings positionally don't need updating.
+    defence_nodes: frozenset[str] = frozenset()
     # Per-guild node "quality" markers visualised on the tracker. A node can be
     # in at most one of these sets (the panel keeps them mutually exclusive at
     # write time; the renderer prefers excellent if both for defensiveness).
@@ -29,6 +33,7 @@ class GuildSettings:
             blocked_nodes=frozenset(),
             pinned_nodes=frozenset(),
             dojoshare_nodes=config.dojoshare_nodes(),
+            defence_nodes=config.defence_nodes(),
             excellent_nodes=frozenset(),
             good_nodes=frozenset(),
             locale=config.default_locale,

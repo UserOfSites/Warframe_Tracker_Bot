@@ -42,7 +42,8 @@ class GuildSettingsRepository:
         async with self._db.cursor() as cur:
             await cur.execute(
                 "SELECT locale, allowed_mission_types, blocked_nodes, "
-                "pinned_nodes, dojoshare_nodes, excellent_nodes, good_nodes "
+                "pinned_nodes, dojoshare_nodes, defence_nodes, "
+                "excellent_nodes, good_nodes "
                 "FROM guild_settings WHERE guild_id = ?",
                 (guild_id,),
             )
@@ -54,6 +55,7 @@ class GuildSettingsRepository:
             blocked_nodes=_split(row["blocked_nodes"]),
             pinned_nodes=_split(row["pinned_nodes"]),
             dojoshare_nodes=_split(row["dojoshare_nodes"]),
+            defence_nodes=_split(row["defence_nodes"]),
             excellent_nodes=_split(row["excellent_nodes"]),
             good_nodes=_split(row["good_nodes"]),
             locale=row["locale"],
@@ -65,15 +67,16 @@ class GuildSettingsRepository:
                 """
                 INSERT INTO guild_settings
                     (guild_id, locale, allowed_mission_types, blocked_nodes,
-                     pinned_nodes, dojoshare_nodes,
+                     pinned_nodes, dojoshare_nodes, defence_nodes,
                      excellent_nodes, good_nodes, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 ON CONFLICT(guild_id) DO UPDATE SET
                     locale = excluded.locale,
                     allowed_mission_types = excluded.allowed_mission_types,
                     blocked_nodes = excluded.blocked_nodes,
                     pinned_nodes = excluded.pinned_nodes,
                     dojoshare_nodes = excluded.dojoshare_nodes,
+                    defence_nodes = excluded.defence_nodes,
                     excellent_nodes = excluded.excellent_nodes,
                     good_nodes = excluded.good_nodes,
                     updated_at = datetime('now')
@@ -85,6 +88,7 @@ class GuildSettingsRepository:
                     _join(settings.blocked_nodes),
                     _join(settings.pinned_nodes),
                     _join(settings.dojoshare_nodes),
+                    _join(settings.defence_nodes),
                     _join(settings.excellent_nodes),
                     _join(settings.good_nodes),
                 ),

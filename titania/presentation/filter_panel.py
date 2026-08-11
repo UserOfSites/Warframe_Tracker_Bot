@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from titania.domain.mission_type import (
+    DEFAULT_DEFENCE_NODES,
     DEFAULT_DOJOSHARE_NODES,
     FAST_MISSIONS,
     MissionType,
@@ -36,6 +37,12 @@ _DOJOSHARE_MISSIONS: tuple[MissionType, ...] = (
     MissionType.DEFENSE,
 )
 
+# Defence nodes carry Defense / Mobile Defense.
+_DEFENCE_MISSIONS: tuple[MissionType, ...] = (
+    MissionType.DEFENSE,
+    MissionType.MOBILE_DEFENSE,
+)
+
 # Stable ordering for the "fast" set so the dropdown order doesn't change
 # between renders.
 _FAST_MISSION_ORDER: tuple[MissionType, ...] = (
@@ -48,6 +55,7 @@ _FAST_MISSION_ORDER: tuple[MissionType, ...] = (
 _TOPIC_SHORT: dict[FissureTopic, str] = {
     FissureTopic.NORMAL_FAST: "Normal",
     FissureTopic.SP_FAST: "SP",
+    FissureTopic.DEFENCES: "Def",
     FissureTopic.DOJOSHARE: "Dojo",
     FissureTopic.SP_TUVUL_CASCADE: "Cascade",
 }
@@ -86,6 +94,9 @@ _TOPIC_CONFIGS: dict[FissureTopic, _TopicConfig] = {
     ),
     FissureTopic.SP_FAST: _TopicConfig(
         missions=_FAST_OPTIONS, planets=_ALL_PLANETS, node_mode="catalog",
+    ),
+    FissureTopic.DEFENCES: _TopicConfig(
+        missions=_DEFENCE_MISSIONS, planets=_ALL_PLANETS, node_mode="select",
     ),
     FissureTopic.DOJOSHARE: _TopicConfig(
         missions=_DOJOSHARE_MISSIONS, planets=_ALL_PLANETS, node_mode="select",
@@ -131,6 +142,8 @@ class FilterPanel(discord.ui.View):
         self._dojoshare_nodes: tuple[str, ...] = tuple(
             sorted(DEFAULT_DOJOSHARE_NODES)
         )
+        # Defence-topic node shortlist, same idea as dojoshare's.
+        self._defence_nodes: tuple[str, ...] = tuple(sorted(DEFAULT_DEFENCE_NODES))
         # Full node catalog with per-node planet + mission type — used by the
         # fast-topic node multi-select to filter as the user picks planets and
         # missions. Loaded once in open(); empty dict means we'll fall back to
@@ -184,16 +197,6 @@ class FilterPanel(discord.ui.View):
         if self.current_topic is None:
             return
 
-        reset_btn = discord.ui.Button(
-            label="Reset",
-            emoji="🧹",
-            style=discord.ButtonStyle.danger,
-            row=0,
-            disabled=self.current_filter.is_unrestricted,
-        )
-        reset_btn.callback = self._on_reset_all
-        self.add_item(reset_btn)
-
         cfg = _TOPIC_CONFIGS[self.current_topic]
         next_row = 1
 
@@ -245,18 +248,23 @@ class FilterPanel(discord.ui.View):
         #                 then shows that planet's nodes (further filtered by
         #                 the mission allowlist). Other planets' selections
         #                 are preserved when switching.
-        if cfg.node_mode == "select" and self._dojoshare_nodes:
+        node_shortlist = (
+            self._defence_nodes
+            if self.current_topic is FissureTopic.DEFENCES
+            else self._dojoshare_nodes
+        )
+        if cfg.node_mode == "select" and node_shortlist:
             node_select = discord.ui.Select(
                 placeholder="Nodes allowlist  (none selected = any)",
                 min_values=0,
-                max_values=len(self._dojoshare_nodes),
+                max_values=len(node_shortlist),
                 options=[
                     discord.SelectOption(
                         label=n,
                         value=n,
                         default=n in self.current_filter.nodes,
                     )
-                    for n in self._dojoshare_nodes
+                    for n in node_shortlist
                 ],
                 row=next_row,
             )
@@ -303,6 +311,21 @@ class FilterPanel(discord.ui.View):
                     node_select.callback = self._on_browse_node_change
                     self.add_item(node_select)
                     next_row += 1
+
+        # Reset lives on the first free row below the filter selects (row 0 is
+        # now full with five topic buttons). In the rare worst case — catalog
+        # mode while browsing a planet — all four rows are taken; the button is
+        # simply omitted there (clear a filter by deselecting, or re-open).
+        if next_row <= 4:
+            reset_btn = discord.ui.Button(
+                label="Reset",
+                emoji="🧹",
+                style=discord.ButtonStyle.danger,
+                row=next_row,
+                disabled=self.current_filter.is_unrestricted,
+            )
+            reset_btn.callback = self._on_reset_all
+            self.add_item(reset_btn)
 
     def _build_embed(self) -> discord.Embed:
         if self.current_topic is None:

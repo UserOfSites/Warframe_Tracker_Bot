@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from titania.domain.era import Era
@@ -30,13 +30,17 @@ class NextReset:
 
 @dataclass(frozen=True)
 class FissureBoard:
-    """What `/fissures` renders — three sections plus per-era reset timers.
+    """What `/fissures` renders — four sections plus per-era reset timers.
 
     - normal:      fast-type, not SP
-    - steel_path:  fast-type, SP, not in dojoshare list
+    - steel_path:  fast-type, SP, not in dojoshare/defence lists
+    - defences:    node in defence list, any mission type, Normal *and* SP
     - dojoshare:   SP only, node in dojoshare list, any mission type
     - next_resets: one entry per (era, is_steel_path) combo that's currently
                    active, with the soonest expiry of that combo
+
+    ``defences`` is defaulted so older constructors that predate the section
+    keep working (they get an empty list).
     """
 
     normal: list[Fissure]
@@ -44,7 +48,8 @@ class FissureBoard:
     dojoshare: list[Fissure]
     next_resets: list[NextReset]
     generated_at: datetime
+    defences: list[Fissure] = field(default_factory=list)
 
     @property
     def is_empty(self) -> bool:
-        return not (self.normal or self.steel_path or self.dojoshare)
+        return not (self.normal or self.steel_path or self.defences or self.dojoshare)

@@ -35,8 +35,9 @@ class FissureService:
 
     Single-pass partition with explicit priority:
       1. Dojoshare:  is_steel_path AND node in dojoshare_nodes
-      2. Steel Path: is_steel_path AND mission_type in allowed AND node not blocked
-      3. Normal:    !is_steel_path AND mission_type in allowed AND node not blocked
+      2. Defences:   node in defence_nodes (Normal or SP), any mission type
+      3. Steel Path: is_steel_path AND mission_type in allowed AND node not blocked
+      4. Normal:    !is_steel_path AND mission_type in allowed AND node not blocked
       otherwise: dropped.
 
     The dojoshare bucket bypasses the mission-type filter and the blocked-nodes
@@ -70,15 +71,25 @@ class FissureService:
         blocked = {_normalize(n) for n in settings.blocked_nodes}
         pinned = {_normalize(n) for n in settings.pinned_nodes}
         dojoshare_set = {_normalize(n) for n in settings.dojoshare_nodes}
+        defence_set = {_normalize(n) for n in settings.defence_nodes}
 
         normal: list[Fissure] = []
         steel_path: list[Fissure] = []
         dojoshare: list[Fissure] = []
+        defences: list[Fissure] = []
 
         for f in all_fissures:
             node_lc = _normalize(f.node)
             if f.is_steel_path and node_lc in dojoshare_set:
                 dojoshare.append(f)
+                continue
+            # Defence nodes: an explicit curated opt-in like dojoshare, but for
+            # both Normal *and* Steel Path (dojoshare is checked first, so a
+            # node in both lists keeps its SP fissure in dojoshare). Bypasses
+            # the mission-type filter — Defense isn't a "fast" mission, so it
+            # would otherwise be dropped.
+            if node_lc in defence_set:
+                defences.append(f)
                 continue
             # Pinned nodes bypass the type filter — they are an explicit
             # always-show override. Blocked still wins (defensive: if a node
@@ -96,10 +107,12 @@ class FissureService:
         normal.sort(key=_sort_key)
         steel_path.sort(key=_sort_key)
         dojoshare.sort(key=_sort_key)
+        defences.sort(key=_sort_key)
 
         return FissureBoard(
             normal=normal,
             steel_path=steel_path,
+            defences=defences,
             dojoshare=dojoshare,
             next_resets=_compute_next_resets(all_fissures),
             generated_at=datetime.now(timezone.utc),

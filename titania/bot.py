@@ -85,6 +85,13 @@ class TitaniaBot(commands.Bot):
         # The registry is populated now, so the reaction subscriber can build
         # its emoji-id → topic lookup table for incoming reaction events.
         self.reaction_subscriber.reload_emoji_map()
+        # Backfill reactions for any topic added since a tracker was posted
+        # (e.g. Defences) so existing tracked messages gain the new reaction
+        # without being deleted and re-posted.
+        try:
+            await self.reaction_subscriber.reseed_tracked_messages()
+        except Exception:
+            log.exception("failed to reseed reactions on tracked messages")
         self.refresher.start()
 
     def command_mention(self, qualified_name: str) -> str | None:

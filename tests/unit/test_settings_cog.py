@@ -54,19 +54,34 @@ def _bot_stub(settings: GuildSettings, node_details: dict[str, NodeInfo] | None 
     return bot
 
 
+_CATEGORY_SELECT_PLACEHOLDER = "Pick a category to edit…"
+
+
+def _content_selects(panel) -> list[discord.ui.Select]:
+    """Selects other than the row-0 category picker."""
+    return [
+        c
+        for c in panel.children
+        if isinstance(c, discord.ui.Select)
+        and c.placeholder != _CATEGORY_SELECT_PLACEHOLDER
+    ]
+
+
 @pytest.mark.asyncio
-async def test_panel_topic_buttons_only_until_category_picked():
+async def test_panel_category_select_until_category_picked():
     panel = SettingsPanel(_bot_stub(_settings()), guild_id=1)
     panel._settings = _settings()
     panel._rebuild()
-    # 4 category buttons; no Reset yet (no category selected).
-    btns = [c for c in panel.children if isinstance(c, discord.ui.Button)]
-    assert {b.label for b in btns} == {
-        "Missions", "Dojoshare", "Pinned", "Blocked", "Quality",
-    }
-    # No selects yet.
+    # Categories are a single row-0 Select (not buttons) so six of them fit.
     selects = [c for c in panel.children if isinstance(c, discord.ui.Select)]
-    assert selects == []
+    assert len(selects) == 1
+    assert selects[0].placeholder == _CATEGORY_SELECT_PLACEHOLDER
+    assert {opt.label for opt in selects[0].options} == {
+        "Missions", "Dojoshare", "Defences", "Pinned", "Blocked", "Quality",
+    }
+    # No category picked yet -> no content selects, no Reset button.
+    assert _content_selects(panel) == []
+    assert [c for c in panel.children if isinstance(c, discord.ui.Button)] == []
 
 
 @pytest.mark.asyncio
@@ -75,9 +90,9 @@ async def test_panel_missions_category_shows_one_multi_select():
     panel._settings = _settings(allowed_mission_types=frozenset({MissionType.CAPTURE}))
     panel.current_category = _Category.MISSIONS
     panel._rebuild()
-    selects = [c for c in panel.children if isinstance(c, discord.ui.Select)]
-    assert len(selects) == 1
-    sel = selects[0]
+    content = _content_selects(panel)
+    assert len(content) == 1
+    sel = content[0]
     # The default-marked option must match what's in the filter
     defaults = {opt.value for opt in sel.options if opt.default}
     assert defaults == {MissionType.CAPTURE.value}
@@ -97,16 +112,16 @@ async def test_panel_nodes_category_browse_first_then_node_select():
 
     # No browse planet yet -> only the browse planet selector is shown
     panel._rebuild()
-    selects = [c for c in panel.children if isinstance(c, discord.ui.Select)]
-    assert len(selects) == 1
-    assert selects[0].placeholder.startswith("Browse planet")
+    content = _content_selects(panel)
+    assert len(content) == 1
+    assert content[0].placeholder.startswith("Browse planet")
 
     # Pick Mercury -> node multi-select appears with Mercury's two nodes
     panel._browse_planet = "Mercury"
     panel._rebuild()
-    selects = [c for c in panel.children if isinstance(c, discord.ui.Select)]
-    assert len(selects) == 2
-    node_sel = selects[1]
+    content = _content_selects(panel)
+    assert len(content) == 2
+    node_sel = next(s for s in content if s.placeholder.startswith("Nodes on"))
     labels = [opt.label for opt in node_sel.options]
     assert any("Apollodorus" in lbl for lbl in labels)
     assert any("Caduceus" in lbl for lbl in labels)

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from titania.domain.mission_type import (
+    DEFAULT_DEFENCE_NODES,
     DEFAULT_DOJOSHARE_NODES,
     FAST_MISSIONS,
     MissionType,
@@ -29,6 +30,7 @@ _PANEL_TIMEOUT_SECONDS = 600
 class _Category(StrEnum):
     MISSIONS = "missions"
     DOJOSHARE = "dojoshare"
+    DEFENCES = "defences"
     PINNED = "pinned"
     BLOCKED = "blocked"
     QUALITY = "quality"
@@ -37,6 +39,7 @@ class _Category(StrEnum):
 _CATEGORY_LABELS: dict[_Category, str] = {
     _Category.MISSIONS: "Missions",
     _Category.DOJOSHARE: "Dojoshare",
+    _Category.DEFENCES: "Defences",
     _Category.PINNED: "Pinned",
     _Category.BLOCKED: "Blocked",
     _Category.QUALITY: "Quality",
@@ -50,6 +53,10 @@ _CATEGORY_DESCRIPTIONS: dict[_Category, str] = {
     _Category.DOJOSHARE: (
         "Steel-Path-only long-farm nodes — promoted to a separate tracker "
         "section and bypassing the mission filter."
+    ),
+    _Category.DEFENCES: (
+        "Defense-mission nodes — promoted to the tracker's Defences section "
+        "for both Normal and Steel Path, bypassing the mission filter."
     ),
     _Category.PINNED: (
         "Nodes that always appear on the tracker, regardless of the mission "
@@ -146,24 +153,27 @@ class SettingsPanel(discord.ui.View):
 
     # ---------- rendering ----------
 
-    def _category_style(self, cat: _Category) -> discord.ButtonStyle:
-        if cat is self.current_category:
-            return discord.ButtonStyle.primary
-        return discord.ButtonStyle.secondary
-
     def _rebuild(self) -> None:
         self.clear_items()
 
-        # Row 0 — five category buttons. We dropped Reset from row 0 (no room
-        # for a 6th button); it now lives on row 4 once a category is active.
-        for cat in _Category:
-            btn = discord.ui.Button(
-                label=_CATEGORY_LABELS[cat],
-                style=self._category_style(cat),
-                row=0,
-            )
-            btn.callback = self._make_category_callback(cat)
-            self.add_item(btn)
+        # Row 0 — category picker. A Select (not buttons) so it scales past the
+        # 5-button-per-row cap now that there are six categories.
+        category_select = discord.ui.Select(
+            placeholder="Pick a category to edit…",
+            min_values=0,
+            max_values=1,
+            options=[
+                discord.SelectOption(
+                    label=_CATEGORY_LABELS[cat],
+                    value=cat.value,
+                    default=cat is self.current_category,
+                )
+                for cat in _Category
+            ],
+            row=0,
+        )
+        category_select.callback = self._on_category_select
+        self.add_item(category_select)
 
         if self.current_category is None or self._settings is None:
             return
@@ -270,6 +280,8 @@ class SettingsPanel(discord.ui.View):
         assert self._settings is not None
         if self.current_category is _Category.DOJOSHARE:
             return self._settings.dojoshare_nodes
+        if self.current_category is _Category.DEFENCES:
+            return self._settings.defence_nodes
         if self.current_category is _Category.PINNED:
             return self._settings.pinned_nodes
         if self.current_category is _Category.BLOCKED:
@@ -354,6 +366,11 @@ class SettingsPanel(discord.ui.View):
             inline=False,
         )
         embed.add_field(
+            name="🛡️  Defence nodes",
+            value=_format_set(self._settings.defence_nodes),
+            inline=False,
+        )
+        embed.add_field(
             name="📌  Pinned nodes",
             value=_format_set(self._settings.pinned_nodes),
             inline=False,
@@ -377,16 +394,15 @@ class SettingsPanel(discord.ui.View):
 
     # ---------- callbacks ----------
 
-    def _make_category_callback(self, cat: _Category):
-        async def _cb(interaction: discord.Interaction) -> None:
-            self.current_category = cat
-            self._browse_planet = None
-            self._quality_tier = None
-            self._rebuild()
-            await interaction.response.edit_message(
-                embed=self._build_embed(), view=self
-            )
-        return _cb
+    async def _on_category_select(self, interaction: discord.Interaction) -> None:
+        values = interaction.data.get("values", [])  # type: ignore[arg-type]
+        self.current_category = _Category(values[0]) if values else None
+        self._browse_planet = None
+        self._quality_tier = None
+        self._rebuild()
+        await interaction.response.edit_message(
+            embed=self._build_embed(), view=self
+        )
 
     async def _on_quality_tier_change(
         self, interaction: discord.Interaction
@@ -441,6 +457,8 @@ class SettingsPanel(discord.ui.View):
         new_settings: GuildSettings
         if self.current_category is _Category.DOJOSHARE:
             new_settings = replace(self._settings, dojoshare_nodes=new_set)
+        elif self.current_category is _Category.DEFENCES:
+            new_settings = replace(self._settings, defence_nodes=new_set)
         elif self.current_category is _Category.PINNED:
             new_settings = replace(self._settings, pinned_nodes=new_set)
         elif self.current_category is _Category.BLOCKED:
@@ -477,6 +495,11 @@ class SettingsPanel(discord.ui.View):
             new = replace(
                 self._settings,
                 dojoshare_nodes=frozenset(DEFAULT_DOJOSHARE_NODES),
+            )
+        elif self.current_category is _Category.DEFENCES:
+            new = replace(
+                self._settings,
+                defence_nodes=frozenset(DEFAULT_DEFENCE_NODES),
             )
         elif self.current_category is _Category.PINNED:
             new = replace(self._settings, pinned_nodes=frozenset())

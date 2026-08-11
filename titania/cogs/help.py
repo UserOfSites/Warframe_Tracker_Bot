@@ -54,7 +54,7 @@ _GENERAL_COMMANDS = (
 _SUBSCRIBE_FLOW = (
     "1. On a server with `/track` set up, click a reaction button on the "
     "tracker embed (⚡ Tenno = Normal Fast, Steel Essence = SP Fast, "
-    "Clan XP = Dojoshare, Omnia = SP Tuvul Cascade).\n"
+    "🛡️ = Defences, Clan XP = Dojoshare, Omnia = SP Tuvul Cascade).\n"
     "2. That topic is added to your subscriptions; you start receiving DM "
     "alerts and a persistent summary in our DMs.\n"
     "3. Optional: DM me `/notifications` to filter further (only certain "

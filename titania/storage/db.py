@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
     blocked_nodes         TEXT    NOT NULL DEFAULT '',
     pinned_nodes          TEXT    NOT NULL DEFAULT '',
     dojoshare_nodes       TEXT    NOT NULL DEFAULT 'Draco,Casta,Nimus,Mot,Ani,Elara,Io,Stephano,Circulus,Yuvarium',
+    defence_nodes         TEXT    NOT NULL DEFAULT '',
     excellent_nodes       TEXT    NOT NULL DEFAULT '',
     good_nodes            TEXT    NOT NULL DEFAULT '',
     updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
@@ -117,6 +118,12 @@ class Database:
                     f"{star_col} TEXT NOT NULL DEFAULT ''"
                 )
                 log.info("migration: added guild_settings.%s", star_col)
+        if "defence_nodes" not in cols:
+            await self._conn.execute(
+                "ALTER TABLE guild_settings ADD COLUMN "
+                "defence_nodes TEXT NOT NULL DEFAULT ''"
+            )
+            log.info("migration: added guild_settings.defence_nodes")
         async with self._conn.execute(
             "PRAGMA table_info(user_preferences)"
         ) as cur:

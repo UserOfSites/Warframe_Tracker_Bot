@@ -65,6 +65,23 @@ DEFAULT_DOJOSHARE_NODES: frozenset[str] = frozenset({
 })
 
 
+# Curated Defense-mission nodes surfaced in the tracker's "Defences" section.
+# Unlike dojoshare (Steel-Path only), this promotes both Normal AND Steel Path
+# fissures on these nodes. Kept in sync with the ``DEFAULT_DEFENCE_NODES`` env
+# default; the operator can override per-guild via /settings.
+DEFAULT_DEFENCE_NODES: frozenset[str] = frozenset({
+    "Hydron",       # Sedna
+    "Io",           # Jupiter
+    "Helene",       # Saturn
+    "Casta",        # Ceres
+    "Ani",          # Void
+    "Stephano",     # Uranus
+    "Cholistan",    # Europa
+    "Tessera",      # Venus
+    "Tikal",        # Earth
+})
+
+
 # Upstream labels that don't match enum values verbatim (e.g. warframestat returns
 # "Extermination" while the in-game label is "Exterminate").
 _MISSION_TYPE_ALIASES: dict[str, MissionType] = {

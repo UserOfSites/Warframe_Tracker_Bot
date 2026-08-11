@@ -21,6 +21,13 @@ class Config(BaseSettings):
         "Draco,Casta,Nimus,Mot,Ani,Elara,Io,Stephano,Circulus,Yuvarium",
         alias="DEFAULT_DOJOSHARE_NODES",
     )
+    # Curated Defense-mission nodes shown in the tracker's "Defences" section
+    # (both Normal and Steel Path). May be empty — the section then just shows
+    # an "empty" hint until nodes are added here or via /settings.
+    default_defence_nodes: str = Field(
+        "Hydron,Io,Helene,Casta,Ani,Stephano,Cholistan,Tessera,Tikal",
+        alias="DEFAULT_DEFENCE_NODES",
+    )
     db_path: str = Field("./titania.db", alias="DB_PATH")
     log_level: str = Field("INFO", alias="LOG_LEVEL")
 
@@ -36,3 +43,6 @@ class Config(BaseSettings):
 
     def dojoshare_nodes(self) -> frozenset[str]:
         return frozenset(s.strip() for s in self.default_dojoshare_nodes.split(",") if s.strip())
+
+    def defence_nodes(self) -> frozenset[str]:
+        return frozenset(s.strip() for s in self.default_defence_nodes.split(",") if s.strip())

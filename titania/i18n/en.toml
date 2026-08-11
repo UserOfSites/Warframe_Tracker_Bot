@@ -4,12 +4,14 @@ title = "Active Void Fissures"
 [embed.section]
 normal = "Normal"
 steel_path = "Steel Path"
+defences = "Defences"
 dojoshare = "Dojoshare"
 next_resets = "Next resets"
 
 [embed.empty]
 normal = "No fast Normal fissures right now."
 steel_path = "No fast Steel Path fissures right now."
+defences = "No defence fissures right now."
 dojoshare = "No dojoshare fissures right now."
 next_resets = "No active fissures."
 
