@@ -448,8 +448,8 @@ def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
 
 
 def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str:
-    # Cavia crest precedes the "Bird3 (Shiny Treasures)" header.
-    header = f"{registry.get('cavia', '✨')} **Bird3 (Shiny Treasures)**"
+    # Cavia crest precedes the "Bird 3 (Shiny Treasures)" header.
+    header = f"{registry.get('cavia', '✨')} **Bird 3 (Shiny Treasures)**"
     icon = registry.get(shard.icon_key, shard.fallback_emoji)
     return f"{header}\n{icon} {shard.shard_name} ({shard.color})"
 
@@ -474,8 +474,11 @@ def build_vendors_embed(
       :func:`build_baro_inventory_embed`, not here).
     - **Teshin** — the current static weekly Steel Path Honors reward.
     - **Archon Hunt** — the current Archon (fetched) and the shard it awards.
-    - **Shiny Treasures** — a separate shard offering (unrelated to the Archon
-      Hunt) on its own weekly rotation.
+    - **Bird 3 (Shiny Treasures)** — a separate shard offering (unrelated to the
+      Archon Hunt) on its own weekly rotation.
+
+    The four vendors render as a **vertical list** in the description (one
+    block each), not a column grid.
 
     ``teshin`` / ``shiny_treasures`` default to the current week's rotation
     entry; callers (tests) may inject a specific one for determinism.
@@ -487,23 +490,12 @@ def build_vendors_embed(
         color=discord.Color.gold(),
         timestamp=board.generated_at,
     )
-    embed.description = _render_baro_summary(board, inventory_mention, registry)
-    # Teshin + Archon Hunt share the first row (two inline fields); Shiny
-    # Treasures drops to its own row below (inline=False → full width).
-    embed.add_field(
-        name=_INVENTORY_FIELD_CONT,
-        value=_render_teshin_value(teshin, registry),
-        inline=True,
-    )
-    embed.add_field(
-        name=_INVENTORY_FIELD_CONT,
-        value=_render_archon_value(archon, registry),
-        inline=True,
-    )
-    embed.add_field(
-        name=_INVENTORY_FIELD_CONT,
-        value=_render_shard_offer_value(shiny_treasures, registry),
-        inline=False,
-    )
+    sections = [
+        _render_baro_summary(board, inventory_mention, registry),
+        _render_teshin_value(teshin, registry),
+        _render_archon_value(archon, registry),
+        _render_shard_offer_value(shiny_treasures, registry),
+    ]
+    embed.description = "\n\n".join(sections)
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed
