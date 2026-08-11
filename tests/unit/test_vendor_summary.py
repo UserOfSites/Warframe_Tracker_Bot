@@ -9,7 +9,11 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from titania.domain.baro import BaroBoard, VoidTraderState
-from titania.domain.vendors import TESHIN_WEEKLY, resolve_archon
+from titania.domain.vendors import (
+    current_shiny_treasure_shard,
+    current_teshin_reward,
+    resolve_archon,
+)
 from titania.i18n.translator import Translator
 from titania.presentation.vendor_embed import build_vendors_embed
 from titania.services.emoji_registry import EmojiRegistry
@@ -77,6 +81,37 @@ def test_resolve_archon_unknown_is_none(boss):
     assert resolve_archon(boss) is None
 
 
+# --- weekly rotations (anchored to Mon 2026-08-10) ----------------------------
+
+# Anytime in the anchor week (Mon 08-10 → before Mon 08-17).
+_ANCHOR_WEEK = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
+
+
+def test_teshin_rotation_is_3_forma_in_anchor_week():
+    assert current_teshin_reward(_ANCHOR_WEEK).name == "3× Forma"
+
+
+def test_teshin_rotation_advances_weekly_and_wraps():
+    # +1 week → Zaw Riven; the 8-item cycle wraps back to 3× Forma after 8 weeks.
+    assert current_teshin_reward(_ANCHOR_WEEK + timedelta(weeks=1)).name == "Zaw Riven Mod"
+    assert current_teshin_reward(_ANCHOR_WEEK + timedelta(weeks=8)).name == "3× Forma"
+
+
+def test_shiny_treasures_rotation_blue_yellow_red():
+    assert current_shiny_treasure_shard(_ANCHOR_WEEK).color == "blue"
+    assert current_shiny_treasure_shard(_ANCHOR_WEEK + timedelta(weeks=1)).color == "amber"
+    assert current_shiny_treasure_shard(_ANCHOR_WEEK + timedelta(weeks=2)).color == "red"
+    assert current_shiny_treasure_shard(_ANCHOR_WEEK + timedelta(weeks=3)).color == "blue"
+
+
+def test_rotation_respects_monday_reset_boundary():
+    # Sunday 08-16 23:59 is still the anchor week; Monday 08-17 00:00 flips it.
+    sun = datetime(2026, 8, 16, 23, 59, tzinfo=UTC)
+    mon = datetime(2026, 8, 17, 0, 0, tzinfo=UTC)
+    assert current_teshin_reward(sun).name == "3× Forma"
+    assert current_teshin_reward(mon).name == "Zaw Riven Mod"
+
+
 # --- summary embed ------------------------------------------------------------
 
 
@@ -110,7 +145,7 @@ def test_summary_includes_teshin_and_archon_fields(en, registry):
     )
     teshin = next(f for f in embed.fields if "Teshin" in (f.name or ""))
     archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
-    assert TESHIN_WEEKLY.name in (teshin.value or "")
+    assert current_teshin_reward().name in (teshin.value or "")
     assert "Boreal" in (archon.value or "")
     assert "Azure" in (archon.value or "")
 
@@ -137,3 +172,13 @@ def test_summary_archon_field_unavailable_when_none(en, registry):
     embed = build_vendors_embed(_absent_board(), en, registry, archon=None)
     archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
     assert "Unavailable" in (archon.value or "")
+
+
+def test_shiny_treasures_is_a_separate_field_from_archon_hunt(en, registry):
+    # Even with the Archon Hunt unavailable, the Shiny Treasures shard still
+    # renders — they're independent vendors on independent rotations.
+    embed = build_vendors_embed(_absent_board(), en, registry, archon=None)
+    shiny = next(f for f in embed.fields if "Shiny Treasures" in (f.name or ""))
+    archon = next(f for f in embed.fields if "Archon Hunt" in (f.name or ""))
+    assert shiny is not archon
+    assert current_shiny_treasure_shard().shard_name in (shiny.value or "")

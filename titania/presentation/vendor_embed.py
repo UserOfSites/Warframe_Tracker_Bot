@@ -5,7 +5,13 @@ import discord
 
 from titania.data.baro.history import humanize_since
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
-from titania.domain.vendors import TESHIN_WEEKLY, ArchonShard, TeshinReward
+from titania.domain.vendors import (
+    ArchonShard,
+    ShardOffer,
+    TeshinReward,
+    current_shiny_treasure_shard,
+    current_teshin_reward,
+)
 from titania.i18n.translator import Translator
 from titania.presentation.tables import humanize_remaining
 from titania.services.emoji_registry import EmojiRegistry
@@ -392,6 +398,7 @@ def build_baro_inventory_embed(
 def _render_baro_summary(
     board: BaroBoard,
     inventory_mention: str | None,
+    registry: EmojiRegistry,
 ) -> str:
     """Baro's line(s) on the multi-vendor summary embed.
 
@@ -401,31 +408,47 @@ def _render_baro_summary(
     - **Present:** the relay he's in plus a clickable link that opens the
       ``/vendors inventory`` command, whose reply is an ephemeral (dismissible)
       inventory listing just for the clicking user.
+
+    Baro's marker is his ducat icon (falls back to 🛒 until the emoji uploads).
     """
+    marker = registry.get("baro", "🛒")
     state = board.state
     if not state.is_present:
         arrives = f"<t:{int(state.activation.timestamp())}:R>"
-        return f"🛒 **Baro Ki'Teer** — {state.location} · Arrives {arrives}"
+        return f"{marker} **Baro Ki'Teer** — {state.location} · Arrives {arrives}"
     leaves = f"<t:{int(state.expiry.timestamp())}:R>"
     link = inventory_mention or "`/vendors inventory`"
     return (
-        f"🛒 **Baro Ki'Teer** — here now 📍 {state.location} · Leaves {leaves}\n"
+        f"{marker} **Baro Ki'Teer** — here now 📍 {state.location} · Leaves {leaves}\n"
         f"🔎 See his full inventory (only you'll see it): {link}"
     )
 
 
 def _render_archon_value(archon: ArchonShard | None, registry: EmojiRegistry) -> str:
+    # Narmer crest marks the Archon Hunt section (custom emoji don't render in
+    # embed field *names*, so the marker leads the value instead).
+    marker = registry.get("narmer", "🦉")
     if archon is None:
-        return "_Unavailable right now._"
+        return f"{marker} _Unavailable right now._"
     # Real in-game shard icon; the coloured circle is the text fallback when the
     # custom emoji hasn't been uploaded yet (e.g. CDN down on first startup).
     icon = registry.get(archon.icon_key, archon.emoji)
-    return f"{icon} **Archon {archon.archon}** → {archon.shard_name} ({archon.color})"
+    return (
+        f"{marker} {icon} **Archon {archon.archon}** → "
+        f"{archon.shard_name} ({archon.color})"
+    )
 
 
 def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
+    # Steel Essence marks the Teshin (Steel Path Honors) section.
+    marker = registry.get("steel_path", "⚔️")
     icon = registry.get(teshin.icon_key, teshin.fallback_emoji)
-    return f"{icon} {teshin.name}"
+    return f"{marker} {icon} {teshin.name}"
+
+
+def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str:
+    icon = registry.get(shard.icon_key, shard.fallback_emoji)
+    return f"{icon} {shard.shard_name} ({shard.color})"
 
 
 def build_vendors_embed(
@@ -434,34 +457,47 @@ def build_vendors_embed(
     registry: EmojiRegistry,
     *,
     archon: ArchonShard | None = None,
-    teshin: TeshinReward = TESHIN_WEEKLY,
+    teshin: TeshinReward | None = None,
+    shiny_treasures: ShardOffer | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
     returned by ``/vendors baro``.
 
-    Rolls up three vendors at a glance:
+    Rolls up several vendors at a glance:
 
     - **Baro Ki'Teer** — arrival countdown when absent; relay + a clickable
       link to the ephemeral inventory when present (the full item grid lives in
       :func:`build_baro_inventory_embed`, not here).
     - **Teshin** — the current static weekly Steel Path Honors reward.
-    - **Archon Hunt** — the current Archon and the shard colour it awards.
+    - **Archon Hunt** — the current Archon (fetched) and the shard it awards.
+    - **Shiny Treasures** — a separate shard offering (unrelated to the Archon
+      Hunt) on its own weekly rotation.
+
+    ``teshin`` / ``shiny_treasures`` default to the current week's rotation
+    entry; callers (tests) may inject a specific one for determinism.
     """
+    teshin = teshin or current_teshin_reward()
+    shiny_treasures = shiny_treasures or current_shiny_treasure_shard()
     embed = discord.Embed(
         title="Vendors",
         color=discord.Color.gold(),
         timestamp=board.generated_at,
     )
-    embed.description = _render_baro_summary(board, inventory_mention)
+    embed.description = _render_baro_summary(board, inventory_mention, registry)
     embed.add_field(
-        name="⚔️ Teshin · Steel Path Honors",
+        name="Teshin · Steel Path Honors",
         value=_render_teshin_value(teshin, registry),
         inline=True,
     )
     embed.add_field(
-        name="🦉 Archon Hunt",
+        name="Archon Hunt",
         value=_render_archon_value(archon, registry),
+        inline=True,
+    )
+    embed.add_field(
+        name="Shiny Treasures",
+        value=_render_shard_offer_value(shiny_treasures, registry),
         inline=True,
     )
     embed.set_footer(text=translator.t("embed.footer.updated"))
