@@ -496,6 +496,7 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
-    embed.description = "\n\n".join(sections)
+    # Single newline between blocks (not a blank line) keeps the list compact.
+    embed.description = "\n".join(sections)
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed

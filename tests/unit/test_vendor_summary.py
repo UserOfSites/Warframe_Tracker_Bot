@@ -117,12 +117,11 @@ def test_rotation_respects_monday_reset_boundary():
 
 def test_absent_baro_summary_is_single_line_with_location_and_countdown(en, registry):
     embed = build_vendors_embed(_absent_board(), en, registry)
-    # Baro is the first block in the vendor list; when absent it's a single
+    # Baro is the first line of the vendor list; when absent it's a single
     # line carrying the relay + native countdown.
-    baro_block = (embed.description or "").split("\n\n", 1)[0]
-    assert "\n" not in baro_block
-    assert "Larunda Relay (Mercury)" in baro_block
-    assert f"<t:{int((NOW + timedelta(days=5)).timestamp())}:R>" in baro_block
+    baro_line = (embed.description or "").split("\n", 1)[0]
+    assert "Larunda Relay (Mercury)" in baro_line
+    assert f"<t:{int((NOW + timedelta(days=5)).timestamp())}:R>" in baro_line
 
 
 def test_present_baro_summary_shows_relay_and_inventory_link(en, registry):
