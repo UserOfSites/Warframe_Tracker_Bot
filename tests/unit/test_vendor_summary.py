@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from titania.domain.baro import BaroBoard, VoidTraderState
-from titania.domain.vendors import TESHIN_WEEKLY_ITEM, resolve_archon
+from titania.domain.vendors import TESHIN_WEEKLY, resolve_archon
 from titania.i18n.translator import Translator
 from titania.presentation.vendor_embed import build_vendors_embed
 from titania.services.emoji_registry import EmojiRegistry
@@ -110,9 +110,27 @@ def test_summary_includes_teshin_and_archon_fields(en, registry):
     )
     teshin = next(f for f in embed.fields if "Teshin" in (f.name or ""))
     archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
-    assert teshin.value == TESHIN_WEEKLY_ITEM
+    assert TESHIN_WEEKLY.name in (teshin.value or "")
     assert "Boreal" in (archon.value or "")
     assert "Azure" in (archon.value or "")
+
+
+def test_summary_uses_real_icons_when_registry_has_them(en):
+    class _StubRegistry(EmojiRegistry):
+        def __init__(self):
+            super().__init__()
+            self._markup = {
+                "forma": "<:forma:111>",
+                "archon_shard_azure": "<:archon_shard_azure:222>",
+            }
+
+    embed = build_vendors_embed(
+        _absent_board(), en, _StubRegistry(), archon=resolve_archon("Boreal")
+    )
+    teshin = next(f for f in embed.fields if "Teshin" in (f.name or ""))
+    archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
+    assert "<:forma:111>" in (teshin.value or "")
+    assert "<:archon_shard_azure:222>" in (archon.value or "")
 
 
 def test_summary_archon_field_unavailable_when_none(en, registry):

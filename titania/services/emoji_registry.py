@@ -89,6 +89,16 @@ ASSET_TO_EMOJI: dict[str, EmojiSource] = {
     # the upload, and the subscription view falls back to a label-only button.
     "tenno": LocalSource("tenno.png"),
     "clan_xp": LocalSource("clan_xp.png"),
+    # Archon Hunt shards. Which Archon awards which colour is fixed by DE, so
+    # these are the real in-game shard icons shown on the vendors summary.
+    "archon_shard_azure": RemoteSource("ArchonShardBoreal.png"),  # Boreal
+    "archon_shard_crimson": RemoteSource("ArchonShardAmar.png"),  # Amar
+    "archon_shard_amber": RemoteSource("ArchonShardNira.png"),  # Nira
+    # Teshin (Steel Path Honors) weekly-reward icons — one per item kind the
+    # rotation cycles through.
+    "forma": RemoteSource("Forma.png"),
+    "endo": RemoteSource("EndoIconRenderLarge.png"),
+    "riven": RemoteSource("OmegaMod.png"),
 }
 
 

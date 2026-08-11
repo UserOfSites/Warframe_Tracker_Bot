@@ -13,9 +13,19 @@ Two extra vendors ride along in the ``/vendors`` embed:
 
 from dataclasses import dataclass
 
+
+@dataclass(frozen=True)
+class TeshinReward:
+    name: str  # "Forma Bundle"
+    icon_key: str  # emoji-registry key ("forma" / "endo" / "riven" / …)
+    fallback_emoji: str  # unicode shown when the custom emoji isn't loaded
+
+
 # Teshin's current Steel Path Honors weekly reward. Update this by hand each
 # week (Monday reset). Kept deliberately dumb-static — see module docstring.
-TESHIN_WEEKLY_ITEM = "Forma Bundle"
+# ``icon_key`` picks the real in-game icon; when the weekly rotates to Endo or
+# a Riven Sliver, point it at "endo" / "riven".
+TESHIN_WEEKLY = TeshinReward(name="Forma Bundle", icon_key="forma", fallback_emoji="🔧")
 
 
 @dataclass(frozen=True)
@@ -23,7 +33,8 @@ class ArchonShard:
     archon: str  # "Boreal"
     shard_name: str  # "Azure Archon Shard"
     color: str  # human word: "blue"
-    emoji: str  # coloured circle standing in for the shard
+    emoji: str  # coloured circle, a text fallback for the real shard icon
+    icon_key: str  # emoji-registry key for the real in-game shard icon
 
 
 # DE fixes which Archon awards which shard colour: Amar → Crimson (red),
@@ -31,9 +42,9 @@ class ArchonShard:
 # substring so we're robust to the upstream returning "Boreal",
 # "Archon Boreal", "Boreal, the ..." and so on.
 _ARCHON_SHARDS: tuple[ArchonShard, ...] = (
-    ArchonShard("Amar", "Crimson Archon Shard", "red", "🔴"),
-    ArchonShard("Nira", "Amber Archon Shard", "amber", "🟡"),
-    ArchonShard("Boreal", "Azure Archon Shard", "blue", "🔵"),
+    ArchonShard("Amar", "Crimson Archon Shard", "red", "🔴", "archon_shard_crimson"),
+    ArchonShard("Nira", "Amber Archon Shard", "amber", "🟡", "archon_shard_amber"),
+    ArchonShard("Boreal", "Azure Archon Shard", "blue", "🔵", "archon_shard_azure"),
 )
 
 

@@ -5,7 +5,7 @@ import discord
 
 from titania.data.baro.history import humanize_since
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
-from titania.domain.vendors import TESHIN_WEEKLY_ITEM, ArchonShard
+from titania.domain.vendors import TESHIN_WEEKLY, ArchonShard, TeshinReward
 from titania.i18n.translator import Translator
 from titania.presentation.tables import humanize_remaining
 from titania.services.emoji_registry import EmojiRegistry
@@ -414,10 +414,18 @@ def _render_baro_summary(
     )
 
 
-def _render_archon_value(archon: ArchonShard | None) -> str:
+def _render_archon_value(archon: ArchonShard | None, registry: EmojiRegistry) -> str:
     if archon is None:
         return "_Unavailable right now._"
-    return f"{archon.emoji} **Archon {archon.archon}** → {archon.shard_name} ({archon.color})"
+    # Real in-game shard icon; the coloured circle is the text fallback when the
+    # custom emoji hasn't been uploaded yet (e.g. CDN down on first startup).
+    icon = registry.get(archon.icon_key, archon.emoji)
+    return f"{icon} **Archon {archon.archon}** → {archon.shard_name} ({archon.color})"
+
+
+def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
+    icon = registry.get(teshin.icon_key, teshin.fallback_emoji)
+    return f"{icon} {teshin.name}"
 
 
 def build_vendors_embed(
@@ -426,7 +434,7 @@ def build_vendors_embed(
     registry: EmojiRegistry,
     *,
     archon: ArchonShard | None = None,
-    teshin_item: str = TESHIN_WEEKLY_ITEM,
+    teshin: TeshinReward = TESHIN_WEEKLY,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -448,12 +456,12 @@ def build_vendors_embed(
     embed.description = _render_baro_summary(board, inventory_mention)
     embed.add_field(
         name="⚔️ Teshin · Steel Path Honors",
-        value=teshin_item,
+        value=_render_teshin_value(teshin, registry),
         inline=True,
     )
     embed.add_field(
         name="🦉 Archon Hunt",
-        value=_render_archon_value(archon),
+        value=_render_archon_value(archon, registry),
         inline=True,
     )
     embed.set_footer(text=translator.t("embed.footer.updated"))
