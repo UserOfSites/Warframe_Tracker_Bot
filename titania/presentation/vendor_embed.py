@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import discord
 
 from titania.data.baro.history import humanize_since
-from titania.domain.alerts import NotableAlert
+from titania.domain.alerts import AlertEntry
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
 from titania.domain.vendors import (
     ArchonShard,
@@ -455,9 +455,9 @@ def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str
     return f"{header}\n{icon} {shard.shard_name} ({shard.color})"
 
 
-def _render_alerts_value(alerts: list[NotableAlert]) -> str:
-    """Only notable alerts (potatoes / Forma / Exilus adapters) reach here — the
-    caller omits the whole block when the list is empty."""
+def _render_alerts_value(alerts: list[AlertEntry]) -> str:
+    """One line per active alert. The caller omits the whole block when there
+    are none active."""
     lines = ["🚨 **Alerts**"]
     for a in alerts:
         mt = f" ({a.mission_type})" if a.mission_type else ""
@@ -474,7 +474,7 @@ def build_vendors_embed(
     archon: ArchonShard | None = None,
     teshin: TeshinReward | None = None,
     shiny_treasures: ShardOffer | None = None,
-    alerts: list[NotableAlert] | None = None,
+    alerts: list[AlertEntry] | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -489,8 +489,8 @@ def build_vendors_embed(
     - **Archon Hunt** — the current Archon (fetched) and the shard it awards.
     - **Bird 3 (Shiny Treasures)** — a separate shard offering (unrelated to the
       Archon Hunt) on its own weekly rotation.
-    - **Alerts** — appended only when a notable alert is live (Orokin Reactor /
-      Catalyst, Forma, Exilus adapter); omitted entirely otherwise.
+    - **Alerts** — every currently-active alert, appended when any is live and
+      omitted entirely otherwise.
 
     The vendors render as a **vertical list** in the description (one block
     each), not a column grid.
@@ -511,8 +511,7 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
-    # Alerts ride along only when a notable reward is up (potato / Forma /
-    # Exilus adapter) — otherwise the block is omitted entirely.
+    # Alerts ride along whenever any is active; omitted when there are none.
     if alerts:
         sections.append(_render_alerts_value(alerts))
     # Single newline between blocks (not a blank line) keeps the list compact.

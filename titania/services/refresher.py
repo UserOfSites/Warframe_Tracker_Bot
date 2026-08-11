@@ -163,7 +163,7 @@ class FissureRefresher:
         translator = Translator(settings.locale)
         board = await self._bot.baro_service.board()
         archon = await self._bot.archon_service.current()
-        alerts = await self._bot.alert_service.notable()
+        alerts = await self._bot.alert_service.active()
         return build_vendors_embed(
             board,
             translator,

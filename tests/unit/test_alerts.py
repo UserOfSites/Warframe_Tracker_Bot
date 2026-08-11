@@ -1,10 +1,10 @@
-"""Notable-alert filtering + the vendors-embed Alerts section."""
+"""Active-alert extraction + the vendors-embed Alerts section."""
 
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from titania.domain.alerts import notable_alerts
+from titania.domain.alerts import active_alerts
 from titania.domain.baro import BaroBoard, VoidTraderState
 from titania.i18n.translator import Translator
 from titania.presentation.vendor_embed import build_vendors_embed
@@ -14,8 +14,8 @@ UTC = timezone.utc
 NOW = datetime(2026, 8, 11, 12, 0, tzinfo=UTC)
 
 
-def _alert(reward_items=None, counted=None, *, node="Outer Terminus (Pluto)",
-           mtype="Sabotage", expiry=None) -> dict:
+def _alert(reward_items=None, counted=None, credits=0, *,
+           node="Outer Terminus (Pluto)", mtype="Sabotage", expiry=None) -> dict:
     return {
         "expiry": (expiry or (NOW + timedelta(hours=6))).isoformat().replace("+00:00", "Z"),
         "mission": {
@@ -24,54 +24,45 @@ def _alert(reward_items=None, counted=None, *, node="Outer Terminus (Pluto)",
             "reward": {
                 "items": reward_items or [],
                 "countedItems": counted or [],
-                "credits": 50000,
+                "credits": credits,
             },
         },
     }
 
 
-# --- filtering ----------------------------------------------------------------
+# --- extraction ---------------------------------------------------------------
 
 
-def test_notable_keeps_potato_forma_exilus():
+def test_all_active_alerts_are_shown():
     raw = [
-        _alert(["Orokin Reactor Blueprint"]),
-        _alert(["Orokin Catalyst"]),
-        _alert(["Forma Blueprint"]),
-        _alert(["Exilus Weapon Adapter Blueprint"]),
+        _alert(counted=[{"count": 375, "type": "Nakak Pearls"}]),  # Dog Days event
+        _alert(["Braton Blueprint"]),                              # weapon part
+        _alert(["Orokin Reactor Blueprint"]),                      # potato
     ]
-    out = notable_alerts(raw, NOW)
-    assert len(out) == 4
-    assert {"Orokin Reactor Blueprint", "Orokin Catalyst", "Forma Blueprint",
-            "Exilus Weapon Adapter Blueprint"} == {a.reward for a in out}
+    out = active_alerts(raw, NOW)
+    assert len(out) == 3
+    assert "375x Nakak Pearls" in {a.reward for a in out}
+    assert "Braton Blueprint" in {a.reward for a in out}
 
 
-def test_notable_drops_the_usual_junk():
+def test_counted_reward_shows_quantity():
+    out = active_alerts([_alert(counted=[{"count": 375, "type": "Nakak Pearls"}])], NOW)
+    assert out[0].reward == "375x Nakak Pearls"
+
+
+def test_credits_only_reward_falls_back_to_credits():
+    out = active_alerts([_alert(credits=50000)], NOW)
+    assert out[0].reward == "50,000 credits"
+
+
+def test_expired_alerts_dropped_and_sorted_by_expiry():
     raw = [
-        _alert(["Braton Blueprint"]),                       # weapon part
-        _alert(counted=[{"count": 1, "type": "Fieldron"}]),
-        _alert(counted=[{"count": 1, "type": "Detonite Injector"}]),
-        _alert(counted=[{"count": 1, "type": "Mutagen Mass"}]),
-        _alert(counted=[{"count": 350, "type": "Nakak Pearls"}]),  # event currency
+        _alert(["A"], expiry=NOW - timedelta(minutes=1)),        # expired
+        _alert(["B"], expiry=NOW + timedelta(hours=8)),
+        _alert(["C"], expiry=NOW + timedelta(hours=2)),
     ]
-    assert notable_alerts(raw, NOW) == []
-
-
-def test_notable_drops_expired_and_sorts_by_expiry():
-    raw = [
-        _alert(["Forma"], expiry=NOW - timedelta(minutes=1)),          # expired
-        _alert(["Orokin Catalyst"], expiry=NOW + timedelta(hours=8)),
-        _alert(["Orokin Reactor"], expiry=NOW + timedelta(hours=2)),
-    ]
-    out = notable_alerts(raw, NOW)
-    assert [a.reward for a in out] == ["Orokin Reactor", "Orokin Catalyst"]
-
-
-def test_notable_mixed_reward_reports_only_the_notable_item():
-    raw = [_alert(["Braton Blueprint", "Orokin Catalyst"])]
-    out = notable_alerts(raw, NOW)
-    assert len(out) == 1
-    assert out[0].reward == "Orokin Catalyst"
+    out = active_alerts(raw, NOW)
+    assert [a.reward for a in out] == ["C", "B"]
 
 
 # --- embed section ------------------------------------------------------------
@@ -96,15 +87,15 @@ def registry() -> EmojiRegistry:
     return EmojiRegistry()
 
 
-def test_alerts_section_absent_when_no_notable_alerts(en, registry):
+def test_alerts_section_absent_when_no_active_alerts(en, registry):
     embed = build_vendors_embed(_board(), en, registry, alerts=[])
     assert "Alerts" not in (embed.description or "")
 
 
-def test_alerts_section_present_with_notable_alert(en, registry):
-    alerts = notable_alerts([_alert(["Orokin Reactor Blueprint"])], NOW)
+def test_alerts_section_shows_event_reward(en, registry):
+    alerts = active_alerts([_alert(counted=[{"count": 375, "type": "Nakak Pearls"}])], NOW)
     embed = build_vendors_embed(_board(), en, registry, alerts=alerts)
     desc = embed.description or ""
     assert "Alerts" in desc
-    assert "Orokin Reactor Blueprint" in desc
+    assert "375x Nakak Pearls" in desc
     assert "Outer Terminus (Pluto)" in desc
