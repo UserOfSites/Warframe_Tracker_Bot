@@ -152,8 +152,9 @@ def test_summary_includes_teshin_and_archon_fields(en, registry):
     teshin = _field_by_value(embed, "Teshin")
     archon = _field_by_value(embed, "Archon Hunt")
     assert current_teshin_reward().name in (teshin.value or "")
-    assert "Boreal" in (archon.value or "")
-    assert "Azure" in (archon.value or "")
+    # Only the shard type shows — not which Archon awards it.
+    assert "Azure Archon Shard" in (archon.value or "")
+    assert "Boreal" not in (archon.value or "")
 
 
 def test_summary_uses_real_icons_when_registry_has_them(en):

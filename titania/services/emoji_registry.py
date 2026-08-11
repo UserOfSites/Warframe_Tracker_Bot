@@ -94,6 +94,7 @@ ASSET_TO_EMOJI: dict[str, EmojiSource] = {
     # existing "steel_path" Steel-Essence icon.)
     "baro": LocalSource("ducats.png"),
     "narmer": LocalSource("narmer.png"),
+    "cavia": LocalSource("cavia.png"),  # Bird3 (Shiny Treasures) marker
     # Archon Hunt shards. Which Archon awards which colour is fixed by DE, so
     # these are the real in-game shard icons shown on the vendors summary.
     "archon_shard_azure": RemoteSource("ArchonShardBoreal.png"),  # Boreal

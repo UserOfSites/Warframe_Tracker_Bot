@@ -436,10 +436,8 @@ def _render_archon_value(archon: ArchonShard | None, registry: EmojiRegistry) ->
     # Real in-game shard icon; the coloured circle is the text fallback when the
     # custom emoji hasn't been uploaded yet (e.g. CDN down on first startup).
     icon = registry.get(archon.icon_key, archon.emoji)
-    return (
-        f"{header}\n"
-        f"{icon} Archon {archon.archon} → {archon.shard_name} ({archon.color})"
-    )
+    # Show only the shard on offer — not which Archon awards it.
+    return f"{header}\n{icon} {archon.shard_name} ({archon.color})"
 
 
 def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
@@ -450,8 +448,10 @@ def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
 
 
 def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str:
+    # Cavia crest precedes the "Bird3 (Shiny Treasures)" header.
+    header = f"{registry.get('cavia', '✨')} **Bird3 (Shiny Treasures)**"
     icon = registry.get(shard.icon_key, shard.fallback_emoji)
-    return f"✨ **Shiny Treasures**\n{icon} {shard.shard_name} ({shard.color})"
+    return f"{header}\n{icon} {shard.shard_name} ({shard.color})"
 
 
 def build_vendors_embed(
