@@ -139,12 +139,18 @@ def test_present_baro_summary_falls_back_when_mention_missing(en, registry):
     assert "/vendors inventory" in (embed.description or "")
 
 
+def _field_by_value(embed, needle):
+    """Vendor sections live in field *values* (names are zero-width), so match
+    on the value text."""
+    return next(f for f in embed.fields if needle in (f.value or ""))
+
+
 def test_summary_includes_teshin_and_archon_fields(en, registry):
     embed = build_vendors_embed(
         _absent_board(), en, registry, archon=resolve_archon("Boreal")
     )
-    teshin = next(f for f in embed.fields if "Teshin" in (f.name or ""))
-    archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
+    teshin = _field_by_value(embed, "Teshin")
+    archon = _field_by_value(embed, "Archon Hunt")
     assert current_teshin_reward().name in (teshin.value or "")
     assert "Boreal" in (archon.value or "")
     assert "Azure" in (archon.value or "")
@@ -162,23 +168,37 @@ def test_summary_uses_real_icons_when_registry_has_them(en):
     embed = build_vendors_embed(
         _absent_board(), en, _StubRegistry(), archon=resolve_archon("Boreal")
     )
-    teshin = next(f for f in embed.fields if "Teshin" in (f.name or ""))
-    archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
-    assert "<:forma:111>" in (teshin.value or "")
-    assert "<:archon_shard_azure:222>" in (archon.value or "")
+    assert "<:forma:111>" in (_field_by_value(embed, "Teshin").value or "")
+    assert "<:archon_shard_azure:222>" in (_field_by_value(embed, "Archon Hunt").value or "")
+
+
+def test_marker_precedes_vendor_name(en):
+    class _StubRegistry(EmojiRegistry):
+        def __init__(self):
+            super().__init__()
+            self._markup = {"steel_path": "<:steel:1>", "narmer": "<:narmer:2>"}
+
+    embed = build_vendors_embed(
+        _absent_board(), en, _StubRegistry(), archon=resolve_archon("Boreal")
+    )
+    teshin = _field_by_value(embed, "Teshin").value or ""
+    archon = _field_by_value(embed, "Archon Hunt").value or ""
+    assert teshin.index("<:steel:1>") < teshin.index("Teshin")
+    assert archon.index("<:narmer:2>") < archon.index("Archon Hunt")
 
 
 def test_summary_archon_field_unavailable_when_none(en, registry):
     embed = build_vendors_embed(_absent_board(), en, registry, archon=None)
-    archon = next(f for f in embed.fields if "Archon" in (f.name or ""))
+    archon = _field_by_value(embed, "Archon Hunt")
     assert "Unavailable" in (archon.value or "")
 
 
-def test_shiny_treasures_is_a_separate_field_from_archon_hunt(en, registry):
-    # Even with the Archon Hunt unavailable, the Shiny Treasures shard still
-    # renders — they're independent vendors on independent rotations.
+def test_shiny_treasures_on_its_own_row_below_the_other_two(en, registry):
+    # Independent vendor: renders even when the Archon Hunt is unavailable, and
+    # sits on its own row (inline=False) beneath Teshin + Archon Hunt.
     embed = build_vendors_embed(_absent_board(), en, registry, archon=None)
-    shiny = next(f for f in embed.fields if "Shiny Treasures" in (f.name or ""))
-    archon = next(f for f in embed.fields if "Archon Hunt" in (f.name or ""))
-    assert shiny is not archon
+    teshin, archon, shiny = embed.fields
+    assert teshin.inline and archon.inline  # first row, side by side
+    assert shiny.inline is False  # own row below
+    assert "Shiny Treasures" in (shiny.value or "")
     assert current_shiny_treasure_shard().shard_name in (shiny.value or "")

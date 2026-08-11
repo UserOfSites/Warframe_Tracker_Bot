@@ -424,31 +424,34 @@ def _render_baro_summary(
     )
 
 
+# Custom emoji don't render in embed field *names*, so each vendor section is
+# built entirely inside the field value: a header line (marker icon + bold
+# vendor name) followed by the detail line (item/shard icon + text). The field
+# name itself is a zero-width space.
 def _render_archon_value(archon: ArchonShard | None, registry: EmojiRegistry) -> str:
-    # Narmer crest marks the Archon Hunt section (custom emoji don't render in
-    # embed field *names*, so the marker leads the value instead).
-    marker = registry.get("narmer", "🦉")
+    # Narmer crest precedes the "Archon Hunt" header.
+    header = f"{registry.get('narmer', '🦉')} **Archon Hunt**"
     if archon is None:
-        return f"{marker} _Unavailable right now._"
+        return f"{header}\n_Unavailable right now._"
     # Real in-game shard icon; the coloured circle is the text fallback when the
     # custom emoji hasn't been uploaded yet (e.g. CDN down on first startup).
     icon = registry.get(archon.icon_key, archon.emoji)
     return (
-        f"{marker} {icon} **Archon {archon.archon}** → "
-        f"{archon.shard_name} ({archon.color})"
+        f"{header}\n"
+        f"{icon} Archon {archon.archon} → {archon.shard_name} ({archon.color})"
     )
 
 
 def _render_teshin_value(teshin: TeshinReward, registry: EmojiRegistry) -> str:
-    # Steel Essence marks the Teshin (Steel Path Honors) section.
-    marker = registry.get("steel_path", "⚔️")
+    # Steel Essence precedes the "Teshin" header.
+    header = f"{registry.get('steel_path', '⚔️')} **Teshin** · Steel Path Honors"
     icon = registry.get(teshin.icon_key, teshin.fallback_emoji)
-    return f"{marker} {icon} {teshin.name}"
+    return f"{header}\n{icon} {teshin.name}"
 
 
 def _render_shard_offer_value(shard: ShardOffer, registry: EmojiRegistry) -> str:
     icon = registry.get(shard.icon_key, shard.fallback_emoji)
-    return f"{icon} {shard.shard_name} ({shard.color})"
+    return f"✨ **Shiny Treasures**\n{icon} {shard.shard_name} ({shard.color})"
 
 
 def build_vendors_embed(
@@ -485,20 +488,22 @@ def build_vendors_embed(
         timestamp=board.generated_at,
     )
     embed.description = _render_baro_summary(board, inventory_mention, registry)
+    # Teshin + Archon Hunt share the first row (two inline fields); Shiny
+    # Treasures drops to its own row below (inline=False → full width).
     embed.add_field(
-        name="Teshin · Steel Path Honors",
+        name=_INVENTORY_FIELD_CONT,
         value=_render_teshin_value(teshin, registry),
         inline=True,
     )
     embed.add_field(
-        name="Archon Hunt",
+        name=_INVENTORY_FIELD_CONT,
         value=_render_archon_value(archon, registry),
         inline=True,
     )
     embed.add_field(
-        name="Shiny Treasures",
+        name=_INVENTORY_FIELD_CONT,
         value=_render_shard_offer_value(shiny_treasures, registry),
-        inline=True,
+        inline=False,
     )
     embed.set_footer(text=translator.t("embed.footer.updated"))
     return embed
