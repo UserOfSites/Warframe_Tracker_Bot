@@ -47,7 +47,12 @@ class InMemoryFakeSource:
 
     async def fetch_alerts(self) -> list[dict]:
         # No alerts in the fixture; tests that need them build their own raw
-        # payload and call notable_alerts directly.
+        # payload and call active_alerts directly.
+        return []
+
+    async def fetch_invasions(self) -> list[dict]:
+        # No invasions in the fixture; tests build their own raw payload and
+        # call notable_invasions directly.
         return []
 
     async def fetch_node_catalog(self) -> frozenset[str]:

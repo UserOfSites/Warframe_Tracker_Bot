@@ -56,6 +56,10 @@ class CachedDataSource:
         self._alerts_valid_until: datetime | None = None
         self._alerts_lock = asyncio.Lock()
 
+        self._invasions: list[dict[str, Any]] | None = None
+        self._invasions_loaded_at: float = 0.0
+        self._invasions_lock = asyncio.Lock()
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (
@@ -187,6 +191,21 @@ class CachedDataSource:
                 self._earliest_alert_expiry(fresh, now) or now + self._fallback
             )
             return list(fresh)
+
+    async def fetch_invasions(self) -> list[dict[str, Any]]:
+        # Invasions have no clean expiry (they end on completion %), so use a
+        # short time-based cache tied to the configured refresh TTL.
+        now = time.monotonic()
+        ttl = self._fallback.total_seconds()
+        if self._invasions is not None and (now - self._invasions_loaded_at) < ttl:
+            return list(self._invasions)
+        async with self._invasions_lock:
+            now = time.monotonic()
+            if self._invasions is not None and (now - self._invasions_loaded_at) < ttl:
+                return list(self._invasions)
+            self._invasions = await self._inner.fetch_invasions()
+            self._invasions_loaded_at = time.monotonic()
+            return list(self._invasions)
 
     def _earliest_alert_expiry(
         self, alerts: list[dict[str, Any]], now: datetime

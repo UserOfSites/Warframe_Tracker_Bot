@@ -164,12 +164,24 @@ class FissureRefresher:
         board = await self._bot.baro_service.board()
         archon = await self._bot.archon_service.current()
         alerts = await self._bot.alert_service.active()
+        invasions = await self._bot.invasion_service.notable()
+        # Upload each notable invasion's reward icon on demand (they're rare, so
+        # this stays off the hot path in practice) and map image_name → markup.
+        invasion_icons: dict[str, str] = {}
+        for inv in invasions:
+            if not inv.image_name:
+                continue
+            markup = await self._bot.item_emoji_cache.ensure(self._bot, inv.image_name)
+            if markup:
+                invasion_icons[inv.image_name] = markup
         return build_vendors_embed(
             board,
             translator,
             self._bot.emoji_registry,
             archon=archon,
             alerts=alerts,
+            invasions=invasions,
+            invasion_icons=invasion_icons,
             inventory_mention=self._bot.command_mention("vendors inventory"),
         )
 

@@ -42,6 +42,12 @@ class WarframeDataSource(Protocol):
         ``reward``) and ``expiry``; the alerts domain filters to notable-only."""
         ...
 
+    async def fetch_invasions(self) -> list[dict[str, Any]]:
+        """Raw invasions payload (list). Each entry has ``attacker``/``defender``
+        (each with a ``reward`` incl. a ``thumbnail`` icon URL); the invasions
+        domain filters to notable-reward-only."""
+        ...
+
     async def aclose(self) -> None: ...
 
     async def __aenter__(self) -> "WarframeDataSource":

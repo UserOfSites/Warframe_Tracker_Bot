@@ -6,6 +6,7 @@ import discord
 from titania.data.baro.history import humanize_since
 from titania.domain.alerts import AlertEntry
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
+from titania.domain.invasions import NotableInvasion
 from titania.domain.vendors import (
     ArchonShard,
     ShardOffer,
@@ -462,7 +463,21 @@ def _render_alerts_value(alerts: list[AlertEntry]) -> str:
     for a in alerts:
         mt = f" ({a.mission_type})" if a.mission_type else ""
         ts = f"<t:{int(a.expiry.timestamp())}:R>"
-        lines.append(f"⚠️ **{a.reward}** — {a.node}{mt} · ends {ts}")
+        lines.append(f"**{a.reward}** — {a.node}{mt} · ends {ts}")
+    return "\n".join(lines)
+
+
+def _render_invasions_value(
+    invasions: list[NotableInvasion], icons: dict[str, str]
+) -> str:
+    """One line per notable invasion, each led by its reward's real in-game
+    icon (uploaded on demand). The caller omits the block when the list is
+    empty."""
+    lines = ["⚔️ **Invasions**"]
+    for inv in invasions:
+        icon = icons.get(inv.image_name or "", "")
+        prefix = f"{icon} " if icon else ""
+        lines.append(f"{prefix}**{inv.reward}** — {inv.node}")
     return "\n".join(lines)
 
 
@@ -475,6 +490,8 @@ def build_vendors_embed(
     teshin: TeshinReward | None = None,
     shiny_treasures: ShardOffer | None = None,
     alerts: list[AlertEntry] | None = None,
+    invasions: list[NotableInvasion] | None = None,
+    invasion_icons: dict[str, str] | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -489,6 +506,9 @@ def build_vendors_embed(
     - **Archon Hunt** — the current Archon (fetched) and the shard it awards.
     - **Bird 3 (Shiny Treasures)** — a separate shard offering (unrelated to the
       Archon Hunt) on its own weekly rotation.
+    - **Invasions** — only invasions rewarding a notable item (Orokin Reactor /
+      Catalyst, Forma, Exilus Warframe Adapter), each led by that reward's real
+      in-game icon; omitted otherwise.
     - **Alerts** — every currently-active alert, appended when any is live and
       omitted entirely otherwise.
 
@@ -511,6 +531,10 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
+    # Invasions ride along only when a notable reward is up (potato / Forma /
+    # Exilus adapter); omitted entirely otherwise.
+    if invasions:
+        sections.append(_render_invasions_value(invasions, invasion_icons or {}))
     # Alerts ride along whenever any is active; omitted when there are none.
     if alerts:
         sections.append(_render_alerts_value(alerts))

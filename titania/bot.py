@@ -8,6 +8,7 @@ from titania.data.baro.history import BaroHistoryClient
 from titania.services.alert_service import AlertService
 from titania.services.archon_service import ArchonService
 from titania.services.baro_service import BaroService
+from titania.services.invasion_service import InvasionService
 from titania.services.emoji_registry import EmojiRegistry, ItemEmojiCache
 from titania.services.fissure_service import FissureService
 from titania.services.notifier import FissureNotifier
@@ -67,6 +68,7 @@ class TitaniaBot(commands.Bot):
         self.baro_service = BaroService(data_source, self.baro_history)
         self.archon_service = ArchonService(data_source)
         self.alert_service = AlertService(data_source)
+        self.invasion_service = InvasionService(data_source)
         # Filled after the command tree syncs; used to render clickable
         # slash-command mentions (``</vendors inventory:ID>``) inside embeds.
         self._app_command_ids: dict[str, int] = {}
