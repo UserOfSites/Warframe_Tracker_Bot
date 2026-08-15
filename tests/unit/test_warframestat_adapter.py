@@ -57,3 +57,16 @@ def test_adapt_fissures_skips_expired_and_malformed():
     ]
     out = adapt_fissures(payload)
     assert len(out) == 1
+
+
+def test_adapt_fissures_drops_past_expiry_even_when_flag_unset():
+    """Upstream has been seen serving a frozen worldstate: every fissure's
+    ``expiry`` is hours in the past but ``expired`` stays false. Those must be
+    dropped by timestamp so the board doesn't pin to a wall of dead fissures."""
+    payload = [
+        _raw(expiry="2000-01-01T00:00:00Z", expired=False),  # stale-but-unflagged
+        _raw(expiry="2099-01-01T01:00:00Z"),  # genuinely active
+    ]
+    out = adapt_fissures(payload)
+    assert len(out) == 1
+    assert out[0].expires_at == datetime(2099, 1, 1, 1, 0, 0, tzinfo=timezone.utc)

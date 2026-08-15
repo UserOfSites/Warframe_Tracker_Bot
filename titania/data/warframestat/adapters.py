@@ -47,13 +47,24 @@ def adapt_fissure(raw: dict[str, Any]) -> Fissure:
 
 
 def adapt_fissures(payload: list[dict[str, Any]]) -> list[Fissure]:
+    # Anchor once per call so every entry is judged against the same clock.
+    now = datetime.now(timezone.utc)
     out: list[Fissure] = []
     for item in payload:
         if item.get("expired"):
             continue
         try:
-            out.append(adapt_fissure(item))
+            fissure = adapt_fissure(item)
         except (KeyError, ValueError):
             # Skip malformed entries silently; upstream occasionally ships partial rows.
             continue
+        # Don't rely on upstream's `expired` flag alone — warframestat has been
+        # observed serving a frozen worldstate where every fissure's `expiry`
+        # is hours in the past yet `expired` stays false. Ingesting those would
+        # pin the board to a wall of dead fissures (all timers in the past) and,
+        # because the cache anchors its validity to the soonest expiry, would
+        # never let a fresh window take over. Drop anything already expired.
+        if fissure.expires_at <= now:
+            continue
+        out.append(fissure)
     return out
