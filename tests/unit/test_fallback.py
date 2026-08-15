@@ -7,12 +7,17 @@ from titania.domain.mission_type import MissionType
 from titania.domain.node import NodeInfo
 
 
-def _fissure(node="Hepit"):
+def _fissure(node="Hepit", era=Era.LITH, mission_type=MissionType.CAPTURE):
     return Fissure(
-        era=Era.LITH, mission_type=MissionType.CAPTURE, node=node, planet="Void",
+        era=era, mission_type=mission_type, node=node, planet="Void",
         expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
         is_steel_path=False, is_hard=False, tier=1,
     )
+
+
+def _railjack():
+    # "Gian Point" is a Proxima node -> is_railjack() true regardless of type.
+    return _fissure(node="Gian Point")
 
 
 class _Src:
@@ -57,13 +62,13 @@ class _Src:
         self.closed = True
 
 
-async def test_uses_primary_when_it_has_fresh_fissures():
-    primary = _Src(fissures=[_fissure("Ukko")])
-    fallback = _Src(fissures=[_fissure("Hepit")])
+async def test_uses_primary_when_it_is_healthy():
+    primary = _Src(fissures=[_fissure("Ukko"), _fissure("Taranis")])
+    fallback = _Src(fissures=[_fissure("Hepit"), _fissure("Taranis")])
     fds = FallbackDataSource(primary, fallback)
     out = await fds.fetch_fissures()
-    assert [f.node for f in out] == ["Ukko"]
-    assert fallback.fissure_calls == 0  # fallback never touched
+    assert {f.node for f in out} == {"Ukko", "Taranis"}  # primary served (tie -> primary)
+    assert fds._on_fallback is False
 
 
 async def test_falls_back_when_primary_empty():
@@ -73,6 +78,27 @@ async def test_falls_back_when_primary_empty():
     out = await fds.fetch_fissures()
     assert [f.node for f in out] == ["Hepit"]
     assert fds._on_fallback is True
+
+
+async def test_falls_back_when_primary_is_degraded_partial_list():
+    """The live failure: primary returns a few fissures, mostly Railjack, so it
+    has fewer *usable* ones than the complete fallback."""
+    primary = _Src(fissures=[_railjack(), _railjack(), _fissure("Hepit")])  # 1 usable
+    fallback = _Src(fissures=[_fissure("Hepit"), _fissure("Ukko"), _fissure("Taranis")])  # 3
+    fds = FallbackDataSource(primary, fallback)
+    out = await fds.fetch_fissures()
+    assert {f.node for f in out} == {"Hepit", "Ukko", "Taranis"}
+    assert fds._on_fallback is True
+
+
+async def test_requiem_does_not_count_as_usable():
+    # Primary's only non-railjack fissure is Requiem (never rendered), so it has
+    # zero usable and loses to a fallback with a real one.
+    primary = _Src(fissures=[_fissure("Kelpie", era=Era.REQUIEM)])
+    fallback = _Src(fissures=[_fissure("Hepit")])
+    fds = FallbackDataSource(primary, fallback)
+    out = await fds.fetch_fissures()
+    assert [f.node for f in out] == ["Hepit"]
 
 
 async def test_falls_back_when_primary_raises():
@@ -89,10 +115,10 @@ async def test_switches_back_when_primary_recovers():
     fds = FallbackDataSource(primary, fallback)
     await fds.fetch_fissures()
     assert fds._on_fallback is True
-    # Primary comes back to life.
-    primary._fissures = [_fissure("Ukko")]
+    # Primary comes back to full health (more usable than fallback).
+    primary._fissures = [_fissure("Ukko"), _fissure("Taranis")]
     out = await fds.fetch_fissures()
-    assert [f.node for f in out] == ["Ukko"]
+    assert {f.node for f in out} == {"Ukko", "Taranis"}
     assert fds._on_fallback is False
 
 
