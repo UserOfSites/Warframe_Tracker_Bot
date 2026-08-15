@@ -12,6 +12,12 @@ class Config(BaseSettings):
         "warframestat", alias="DATA_SOURCE"
     )
     warframestat_base_url: str = Field("https://api.warframestat.us", alias="WARFRAMESTAT_BASE_URL")
+    # DE's official live worldstate CDN — used as the fissure fallback when the
+    # primary source stalls. Set FISSURE_FALLBACK=false to disable.
+    official_worldstate_url: str = Field(
+        "https://api.warframe.com/cdn/worldState.php", alias="OFFICIAL_WORLDSTATE_URL"
+    )
+    fissure_fallback: bool = Field(True, alias="FISSURE_FALLBACK")
     fissure_cache_ttl: int = Field(30, alias="FISSURE_CACHE_TTL")
     default_locale: str = Field("en", alias="DEFAULT_LOCALE")
     default_fast_missions: str = Field(
