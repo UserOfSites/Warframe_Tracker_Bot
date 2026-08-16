@@ -10,6 +10,7 @@ def _settings(
     blocked=frozenset(),
     pinned=frozenset(),
     dojoshare=frozenset(),
+    defence=frozenset(),
     locale="en",
 ) -> GuildSettings:
     return GuildSettings(
@@ -17,6 +18,7 @@ def _settings(
         blocked_nodes=blocked,
         pinned_nodes=pinned,
         dojoshare_nodes=dojoshare,
+        defence_nodes=defence,
         locale=locale,
     )
 
@@ -100,6 +102,29 @@ async def test_dedup_sp_dojoshare_node_not_duplicated_into_steel_path():
     # must land in dojoshare only — not duplicated into Steel Path.
     assert "Acheron" in {f.node for f in board.dojoshare}
     assert "Acheron" not in {f.node for f in board.steel_path}
+
+
+async def test_overlap_node_sp_fissure_appears_in_both_dojoshare_and_defences():
+    # Stephano is in both lists by default. Its SP Defense fissure must surface
+    # in BOTH the Dojoshare and the Defences sections (independent sections).
+    board = await _board(
+        _settings(dojoshare=frozenset({"Stephano"}), defence=frozenset({"Stephano"}))
+    )
+    dojo_sp = {(f.node, f.is_steel_path) for f in board.dojoshare}
+    def_sp = {(f.node, f.is_steel_path) for f in board.defences}
+    assert ("Stephano", True) in dojo_sp
+    assert ("Stephano", True) in def_sp
+    # And it isn't double-counted into the generic Steel Path section.
+    assert "Stephano" not in {f.node for f in board.steel_path}
+
+
+async def test_defence_only_node_surfaces_in_defences_not_dojoshare():
+    # Hydron is a defence node but NOT a dojoshare node, so its Defense fissure
+    # (SP in the fixture) belongs in Defences only — dojoshare stays empty for
+    # it even though Defense bypasses the fast-mission filter.
+    board = await _board(_settings(defence=frozenset({"Hydron"})))
+    assert "Hydron" in {f.node for f in board.defences}
+    assert "Hydron" not in {f.node for f in board.dojoshare}
 
 
 async def test_dojoshare_bypasses_blocked_nodes():

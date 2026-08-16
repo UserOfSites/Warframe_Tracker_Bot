@@ -33,19 +33,25 @@ def _compute_next_resets(fissures: list[Fissure]) -> list[NextReset]:
 class FissureService:
     """Builds the FissureBoard a guild sees.
 
-    Single-pass partition with explicit priority:
-      1. Dojoshare:  is_steel_path AND node in dojoshare_nodes
-      2. Defences:   node in defence_nodes (Normal or SP), any mission type
-      3. Steel Path: is_steel_path AND mission_type in allowed AND node not blocked
-      4. Normal:    !is_steel_path AND mission_type in allowed AND node not blocked
+    Single-pass partition. The two curated sections are independent — a fissure
+    can appear in both:
+      - Dojoshare:  is_steel_path AND node in dojoshare_nodes
+      - Defences:   node in defence_nodes (Normal or SP), any mission type
+    A fissure landing in either curated section is NOT also placed in the
+    generic sections below. Anything not curated falls through to:
+      - Steel Path: is_steel_path AND mission_type in allowed AND node not blocked
+      - Normal:    !is_steel_path AND mission_type in allowed AND node not blocked
       otherwise: dropped.
 
-    The dojoshare bucket bypasses the mission-type filter and the blocked-nodes
-    list — it is an explicit per-node opt-in for long Steel Path farms. Normal-
-    difficulty fissures at dojoshare nodes are NOT promoted; they fall through
-    to the standard Normal-section rules (so under the default mission-type
-    filter they are dropped, since none of the default dojoshare nodes are
-    fast-type missions).
+    Both curated buckets bypass the mission-type filter and the blocked-nodes
+    list — they are explicit per-node opt-ins (long Steel Path farms for
+    dojoshare; Defense-mission spots for defences). Because they're independent,
+    a node in *both* lists surfaces its Steel Path fissure in both sections
+    (e.g. Stephano, Io, Ani, Casta ship in both defaults). Normal-difficulty
+    fissures at dojoshare-only nodes are NOT promoted; they fall through to the
+    standard Normal-section rules (so under the default mission-type filter they
+    are dropped, since none of the default dojoshare nodes are fast-type
+    missions).
     """
 
     def __init__(
@@ -80,16 +86,20 @@ class FissureService:
 
         for f in all_fissures:
             node_lc = _normalize(f.node)
-            if f.is_steel_path and node_lc in dojoshare_set:
+            # The two curated sections are independent opt-ins, so a fissure can
+            # land in both. Dojoshare is Steel-Path-only; defences covers both
+            # Normal and Steel Path. A node in both lists (Stephano, Io, Ani,
+            # Casta by default) therefore shows its SP fissure in both sections.
+            in_dojoshare = f.is_steel_path and node_lc in dojoshare_set
+            in_defence = node_lc in defence_set
+            if in_dojoshare:
                 dojoshare.append(f)
-                continue
-            # Defence nodes: an explicit curated opt-in like dojoshare, but for
-            # both Normal *and* Steel Path (dojoshare is checked first, so a
-            # node in both lists keeps its SP fissure in dojoshare). Bypasses
-            # the mission-type filter — Defense isn't a "fast" mission, so it
-            # would otherwise be dropped.
-            if node_lc in defence_set:
+            if in_defence:
                 defences.append(f)
+            # Surfaced in a curated section already: don't also drop it into the
+            # generic Normal/Steel Path buckets. Both curated buckets bypass the
+            # mission-type filter and the blocked-nodes list by design.
+            if in_dojoshare or in_defence:
                 continue
             # Pinned nodes bypass the type filter — they are an explicit
             # always-show override. Blocked still wins (defensive: if a node
