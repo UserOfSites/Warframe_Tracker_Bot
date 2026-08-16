@@ -19,8 +19,7 @@ from typing import Any
 
 import httpx
 
-from titania.data.official.adapters import adapt_worldstate_fissures
-from titania.data.warframestat.source import _split_node_value
+from titania.data.official.adapters import adapt_worldstate_fissures, build_node_map
 from titania.domain.fissure import Fissure
 from titania.domain.node import NodeInfo
 
@@ -84,21 +83,10 @@ class OfficialWorldStateSource:
         raise last_exc
 
     async def _node_map_from_solnodes(self) -> dict[str, tuple[str, str, str]]:
-        """``{SolNode id: (name, planet, mission_type_raw)}`` for regular nodes."""
+        """``{node id: (name, planet, mission_type_raw)}`` for regular nodes."""
         resp = await self._get_with_retry(self._solnodes_url)
         resp.raise_for_status()
-        payload = resp.json()
-        out: dict[str, tuple[str, str, str]] = {}
-        for key, entry in payload.items():
-            if not (key.startswith("SolNode") and isinstance(entry, dict)):
-                continue
-            value = entry.get("value")
-            if not (isinstance(value, str) and "(" in value):
-                continue
-            name, planet = _split_node_value(value)
-            mt_raw = entry.get("type")
-            out[key] = (name, planet, mt_raw if isinstance(mt_raw, str) else "")
-        return out
+        return build_node_map(resp.json())
 
     async def _ensure_node_map(self) -> dict[str, tuple[str, str, str]]:
         now = time.monotonic()

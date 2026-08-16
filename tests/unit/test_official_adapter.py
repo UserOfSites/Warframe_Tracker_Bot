@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from titania.data.official.adapters import adapt_worldstate_fissures
+from titania.data.official.adapters import adapt_worldstate_fissures, build_node_map
 from titania.domain.era import Era
 from titania.domain.mission_type import MissionType
 
@@ -87,3 +87,30 @@ def test_unknown_node_degrades_to_raw_id_and_de_mission_type():
 
 def test_empty_document():
     assert adapt_worldstate_fissures({}, _NODE_MAP) == []
+
+
+def test_build_node_map_includes_phobos_settlement_nodes():
+    # DE references Phobos fissures by their historical SettlementNode* ids;
+    # the map must resolve those, not just SolNode*, or they render as raw ids.
+    payload = {
+        "SolNode1": {"value": "Hepit (Void)", "type": "Capture"},
+        "SettlementNode2": {"value": "Skyresh (Phobos)", "type": "Capture"},
+        "CrewBattleNode1": {"value": "Gian Point (Earth Proxima)", "type": "Skirmish"},
+        "MercuryHUB": {"value": "Larunda Relay (Mercury)"},
+        "PvpNode1": {"value": "Cephalon Capture (Ceres)", "type": "Capture"},
+    }
+    node_map = build_node_map(payload)
+    assert node_map["SolNode1"] == ("Hepit", "Void", "Capture")
+    assert node_map["SettlementNode2"] == ("Skyresh", "Phobos", "Capture")
+    # Non-mission node keys (relays, PvP, railjack) are excluded.
+    assert "MercuryHUB" not in node_map
+    assert "PvpNode1" not in node_map
+    assert "CrewBattleNode1" not in node_map
+
+
+def test_settlement_node_resolves_in_fissure_adapt():
+    node_map = {"SettlementNode2": ("Skyresh", "Phobos", "Capture")}
+    payload = {"ActiveMissions": [_mission(node="SettlementNode2", modifier="VoidT2")]}
+    f = adapt_worldstate_fissures(payload, node_map)[0]
+    assert f.node == "Skyresh" and f.planet == "Phobos"
+    assert f.mission_type is MissionType.CAPTURE

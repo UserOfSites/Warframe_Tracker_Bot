@@ -15,9 +15,35 @@ reference data and stays live even when DE's live worldstate feed does not).
 from datetime import datetime, timezone
 from typing import Any
 
+from titania.data.warframestat.source import _split_node_value
 from titania.domain.era import ERA_TIER, Era
 from titania.domain.fissure import Fissure
 from titania.domain.mission_type import MissionType, parse_mission_type
+
+# Star-chart node-key prefixes that host regular missions (and therefore
+# fissures). Phobos is the odd one out — its nodes use the historical
+# ``SettlementNode*`` keys; every other planet is ``SolNode*``. Miss a prefix
+# and those fissures fall back to showing their raw id (e.g. "SettlementNode2"
+# instead of "Skyresh (Phobos)").
+_MISSION_NODE_PREFIXES = ("SolNode", "SettlementNode")
+
+
+def build_node_map(payload: dict[str, Any]) -> dict[str, tuple[str, str, str]]:
+    """``/solnodes`` payload -> ``{node id: (name, planet, mission_type_raw)}``
+    for every regular mission node. DE's worldstate references fissure nodes by
+    these ids, so the map must cover every star-chart prefix, Phobos included."""
+    out: dict[str, tuple[str, str, str]] = {}
+    for key, entry in payload.items():
+        if not (isinstance(entry, dict) and key.startswith(_MISSION_NODE_PREFIXES)):
+            continue
+        value = entry.get("value")
+        if not (isinstance(value, str) and "(" in value):
+            continue
+        name, planet = _split_node_value(value)
+        mt_raw = entry.get("type")
+        out[key] = (name, planet, mt_raw if isinstance(mt_raw, str) else "")
+    return out
+
 
 # ``Modifier`` era codes. VoidT5 is Requiem, VoidT6 is Omnia (Zariman / Lua).
 _ERA_BY_MODIFIER: dict[str, Era] = {
