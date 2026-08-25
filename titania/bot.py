@@ -76,6 +76,9 @@ class TitaniaBot(commands.Bot):
         # Filled after the command tree syncs; used to render clickable
         # slash-command mentions (``</vendors inventory:ID>``) inside embeds.
         self._app_command_ids: dict[str, int] = {}
+        # Roots we've already warned about, so command_mention logs at most once
+        # per unresolved command instead of every render.
+        self._warned_missing_mentions: set[str] = set()
         self.emoji_registry = EmojiRegistry()
         self.item_emoji_cache = ItemEmojiCache()
         self.notifier = FissureNotifier(self)
@@ -89,6 +92,11 @@ class TitaniaBot(commands.Bot):
         synced = await self.tree.sync()
         self._app_command_ids = {c.name: c.id for c in synced}
         log.info("synced %d application commands", len(synced))
+        # A rate-limited/partial sync can come back without our command ids,
+        # which would silently break slash-command mentions (e.g. the Baro
+        # inventory link). Recover them directly from Discord in that case.
+        if not self._app_command_ids:
+            await self._refresh_command_ids()
         await self.emoji_registry.sync(self)
         # The registry is populated now, so the reaction subscriber can build
         # its emoji-id → topic lookup table for incoming reaction events.
@@ -102,6 +110,19 @@ class TitaniaBot(commands.Bot):
             log.exception("failed to reseed reactions on tracked messages")
         self.refresher.start()
 
+    async def _refresh_command_ids(self) -> None:
+        """Repopulate ``_app_command_ids`` from Discord's registered commands.
+        Authoritative and independent of the ``tree.sync`` return value, so it
+        recovers ids after a sync that came back empty/partial."""
+        try:
+            cmds = await self.tree.fetch_commands()
+        except discord.HTTPException:
+            log.exception("failed to fetch application command ids")
+            return
+        if cmds:
+            self._app_command_ids = {c.name: c.id for c in cmds}
+            log.info("refreshed %d application command ids", len(self._app_command_ids))
+
     def command_mention(self, qualified_name: str) -> str | None:
         """``"vendors inventory"`` → ``"</vendors inventory:1234>"``, a native
         clickable slash-command link. Subcommands mention against their root
@@ -111,6 +132,14 @@ class TitaniaBot(commands.Bot):
         root = qualified_name.split(" ", 1)[0]
         cmd_id = self._app_command_ids.get(root)
         if cmd_id is None:
+            # Missing id => the mention silently degrades to plain text. Log it
+            # (once per unknown root) so the cause is diagnosable next time.
+            if root not in self._warned_missing_mentions:
+                self._warned_missing_mentions.add(root)
+                log.warning(
+                    "no synced command id for %r; slash-command mentions will "
+                    "fall back to plain text until command ids refresh", root,
+                )
             return None
         return f"</{qualified_name}:{cmd_id}>"
 
@@ -132,6 +161,11 @@ class TitaniaBot(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info("logged in as %s (id=%s)", self.user, self.user.id if self.user else "?")
+        # Safety net: if the startup sync never populated the command ids (so
+        # slash-command mentions like the Baro inventory link are broken), try
+        # again now — this also runs on reconnects, so it self-heals.
+        if not self._app_command_ids:
+            await self._refresh_command_ids()
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching, name="Void Fissures"
