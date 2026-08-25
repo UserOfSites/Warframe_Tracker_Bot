@@ -55,6 +55,24 @@ class InMemoryFakeSource:
         # call notable_invasions directly.
         return []
 
+    async def fetch_calendar(self) -> dict:
+        # Static stand-in: a live season with one booster and one Archon shard
+        # (plus a non-notable arcane, which must be filtered out).
+        return {
+            "activation": "1999-01-01T00:00:00.000Z",
+            "expiry": "2099-01-01T00:00:00.000Z",
+            "season": "Winter",
+            "days": [
+                {"date": "1999-01-21T00:00:00.000Z", "events": [
+                    {"type": "Big Prize!", "reward": "3 Day Mod Drop Chance Booster"},
+                ]},
+                {"date": "1999-02-16T00:00:00.000Z", "events": [
+                    {"type": "Big Prize!", "reward": "Arcane Enhancements"},
+                    {"type": "Big Prize!", "reward": "Archon Crystal Boreal"},
+                ]},
+            ],
+        }
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # Tests + local dev: a small but realistic stand-in. Returns the union
         # of nodes referenced by the fixture, the default dojoshare list, and a

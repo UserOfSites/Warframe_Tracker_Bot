@@ -60,6 +60,10 @@ class CachedDataSource:
         self._invasions_loaded_at: float = 0.0
         self._invasions_lock = asyncio.Lock()
 
+        self._calendar: dict[str, Any] | None = None
+        self._calendar_valid_until: datetime | None = None
+        self._calendar_lock = asyncio.Lock()
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (
@@ -206,6 +210,32 @@ class CachedDataSource:
             self._invasions = await self._inner.fetch_invasions()
             self._invasions_loaded_at = time.monotonic()
             return list(self._invasions)
+
+    async def fetch_calendar(self) -> dict[str, Any]:
+        # The calendar changes only at a season boundary, so cache until the
+        # current season's activation/expiry transition (weeks out); fall back
+        # to the configured TTL when the payload has no usable timestamps.
+        now = datetime.now(timezone.utc)
+        if (
+            self._calendar is not None
+            and self._calendar_valid_until is not None
+            and now < self._calendar_valid_until
+        ):
+            return dict(self._calendar)
+        async with self._calendar_lock:
+            now = datetime.now(timezone.utc)
+            if (
+                self._calendar is not None
+                and self._calendar_valid_until is not None
+                and now < self._calendar_valid_until
+            ):
+                return dict(self._calendar)
+            fresh = await self._inner.fetch_calendar()
+            self._calendar = fresh
+            self._calendar_valid_until = (
+                self._next_void_trader_transition(fresh, now) or now + self._fallback
+            )
+            return dict(fresh)
 
     def _earliest_alert_expiry(
         self, alerts: list[dict[str, Any]], now: datetime

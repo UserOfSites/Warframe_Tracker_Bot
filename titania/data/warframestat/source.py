@@ -107,6 +107,13 @@ class WarframestatSource:
         payload = resp.json()
         return payload if isinstance(payload, list) else []
 
+    async def fetch_calendar(self) -> dict:
+        url = f"{self._base_url}/{self._platform}/calendar"
+        resp = await self._get_with_retry(url, params={"language": "en"})
+        resp.raise_for_status()
+        payload = resp.json()
+        return payload if isinstance(payload, dict) else {}
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # solnodes lists every node DE has shipped — keyed `SolNode*` for
         # regular missions and `CrewBattleNode*` for Railjack. We expose only

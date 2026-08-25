@@ -99,6 +99,9 @@ class FallbackDataSource:
     async def fetch_invasions(self) -> list[dict]:
         return await self._primary.fetch_invasions()
 
+    async def fetch_calendar(self) -> dict:
+        return await self._primary.fetch_calendar()
+
     async def aclose(self) -> None:
         await self._primary.aclose()
         await self._fallback.aclose()

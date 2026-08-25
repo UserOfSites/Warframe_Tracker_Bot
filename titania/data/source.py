@@ -48,6 +48,13 @@ class WarframeDataSource(Protocol):
         domain filters to notable-reward-only."""
         ...
 
+    async def fetch_calendar(self) -> dict[str, Any]:
+        """Raw 1999-calendar payload (warframestat's parsed ``/calendar``). Keys:
+        ``activation``, ``expiry``, ``days`` (each with ``date`` and ``events``,
+        every event carrying a friendly ``reward`` name); the calendar domain
+        filters to notable Archon-shard / booster rewards."""
+        ...
+
     async def aclose(self) -> None: ...
 
     async def __aenter__(self) -> "WarframeDataSource":

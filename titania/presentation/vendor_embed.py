@@ -5,6 +5,7 @@ import discord
 
 from titania.data.baro.history import humanize_since
 from titania.domain.alerts import AlertEntry
+from titania.domain.calendar import CalendarReward
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
 from titania.domain.invasions import NotableInvasion
 from titania.domain.vendors import (
@@ -467,6 +468,37 @@ def _render_alerts_value(alerts: list[AlertEntry]) -> str:
     return "\n".join(lines)
 
 
+# Calendar Archon-shard reward name -> the real in-game shard icon key. The
+# calendar awards a single shard colour at a time ("Archon Crystal <colour>").
+_CALENDAR_SHARD_ICON: dict[str, str] = {
+    "boreal": "archon_shard_azure",
+    "amar": "archon_shard_crimson",
+    "nira": "archon_shard_amber",
+}
+
+
+def _calendar_icon(reward: CalendarReward, registry: EmojiRegistry) -> str:
+    if reward.kind == "shard":
+        lc = reward.reward.lower()
+        for colour, key in _CALENDAR_SHARD_ICON.items():
+            if colour in lc:
+                return registry.get(key, "🔷")
+        return "🔷"
+    return "⏫"  # booster — no dedicated in-game icon
+
+
+def _render_calendar_value(
+    rewards: list[CalendarReward], registry: EmojiRegistry
+) -> str:
+    """One line per notable calendar reward (Archon shards + boosters). The
+    caller omits the whole block when the list is empty."""
+    lines = ["📅 **Calendar (1999)**"]
+    for r in rewards:
+        day = f"{r.day} · " if r.day else ""
+        lines.append(f"{_calendar_icon(r, registry)} {day}{r.reward}")
+    return "\n".join(lines)
+
+
 def _render_invasions_value(
     invasions: list[NotableInvasion], icons: dict[str, str]
 ) -> str:
@@ -492,6 +524,7 @@ def build_vendors_embed(
     alerts: list[AlertEntry] | None = None,
     invasions: list[NotableInvasion] | None = None,
     invasion_icons: dict[str, str] | None = None,
+    calendar: list[CalendarReward] | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -531,6 +564,10 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
+    # Calendar (1999) rides along only when the active season awards an Archon
+    # shard or a booster; omitted entirely otherwise.
+    if calendar:
+        sections.append(_render_calendar_value(calendar, registry))
     # Invasions ride along only when a notable reward is up (potato / Forma /
     # Exilus adapter); omitted entirely otherwise.
     if invasions:

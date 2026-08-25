@@ -190,6 +190,7 @@ class FissureRefresher:
         archon = await self._bot.archon_service.current()
         alerts = await self._bot.alert_service.active()
         invasions = await self._bot.invasion_service.notable()
+        calendar = await self._bot.calendar_service.notable()
         # Upload each notable invasion's reward icon on demand (they're rare, so
         # this stays off the hot path in practice) and map image_name → markup.
         invasion_icons: dict[str, str] = {}
@@ -207,6 +208,7 @@ class FissureRefresher:
             alerts=alerts,
             invasions=invasions,
             invasion_icons=invasion_icons,
+            calendar=calendar,
             inventory_mention=self._bot.command_mention("vendors inventory"),
         )
 

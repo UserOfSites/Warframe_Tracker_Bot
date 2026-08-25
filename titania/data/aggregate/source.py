@@ -76,6 +76,13 @@ class AggregateSource:
         invasions = resp.json().get("invasions", [])
         return invasions if isinstance(invasions, list) else []
 
+    async def fetch_calendar(self) -> dict:
+        url = f"{self._base_url}/{self._platform}"
+        resp = await self._client.get(url, params={"language": "en"})
+        resp.raise_for_status()
+        calendar = resp.json().get("calendar", {})
+        return calendar if isinstance(calendar, dict) else {}
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # The aggregate endpoint doesn't ship the node catalog; reuse solnodes.
         url = f"{self._base_url}/solnodes"

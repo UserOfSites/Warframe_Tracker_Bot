@@ -132,6 +132,9 @@ class OfficialWorldStateSource:
     async def fetch_invasions(self) -> list[dict[str, Any]]:
         return []
 
+    async def fetch_calendar(self) -> dict[str, Any]:
+        return {}
+
     async def aclose(self) -> None:
         if self._owns_client:
             await self._client.aclose()

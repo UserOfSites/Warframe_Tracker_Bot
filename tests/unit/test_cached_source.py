@@ -96,6 +96,32 @@ async def test_empty_fissure_list_falls_back_to_configured_ttl():
     assert stub.calls == 1
 
 
+async def test_calendar_cached_until_season_expiry():
+    """The calendar changes only at a season boundary, so a payload with a
+    future expiry is served from cache across repeated calls."""
+    near_future = datetime.now(timezone.utc) + timedelta(days=10)
+
+    class _CalStub(_StubSource):
+        def __init__(self):
+            super().__init__()
+            self.cal_calls = 0
+
+        async def fetch_calendar(self):
+            self.cal_calls += 1
+            return {
+                "activation": (datetime.now(timezone.utc) - timedelta(days=1))
+                .isoformat().replace("+00:00", "Z"),
+                "expiry": near_future.isoformat().replace("+00:00", "Z"),
+                "days": [],
+            }
+
+    stub = _CalStub()
+    cache = CachedDataSource(stub, ttl_seconds=60)
+    for _ in range(5):
+        await cache.fetch_calendar()
+    assert stub.cal_calls == 1
+
+
 async def test_node_catalog_cached_for_process_lifetime():
     stub = _StubSource()
     cache = CachedDataSource(stub, ttl_seconds=60)
