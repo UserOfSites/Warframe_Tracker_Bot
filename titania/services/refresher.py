@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 import discord
@@ -26,6 +27,13 @@ class FissureRefresher:
     (deleted message, permission revoked, etc.) doesn't break the others, and
     a missing message is auto-untracked."""
 
+    # When a fissure expires the cache refetches, so we want to tick right then
+    # rather than up to a full interval later. The buffer gives upstream a beat
+    # to publish the replacement rotation before we refetch; the floor stops a
+    # just-expired fissure (or clock skew) from busy-looping.
+    _EXPIRY_BUFFER_SECONDS = 1.5
+    _MIN_WAKE_SECONDS = 2.0
+
     def __init__(self, bot: "TitaniaBot", interval_seconds: float = 30.0) -> None:
         self._bot = bot
         self._interval = interval_seconds
@@ -51,20 +59,25 @@ class FissureRefresher:
 
     async def _loop(self) -> None:
         while not self._stop.is_set():
+            wake = self._interval
             try:
-                await self.tick()
+                wake = await self.tick()
             except asyncio.CancelledError:
                 raise
             except Exception:
                 log.exception("refresher tick failed")
             try:
-                await asyncio.wait_for(self._stop.wait(), timeout=self._interval)
+                await asyncio.wait_for(self._stop.wait(), timeout=wake)
             except TimeoutError:
                 pass
 
-    async def tick(self) -> None:
-        # Warm caches once per tick so the tracked-channel renders are fast.
-        await self._bot.data_source.fetch_fissures()
+    async def tick(self) -> float:
+        """Refresh every tracked channel and return how many seconds to sleep
+        before the next tick — the soonest fissure expiry (so a rotation shows
+        almost immediately), clamped to ``[_MIN_WAKE, interval]``."""
+        # Warm caches once per tick so the tracked-channel renders are fast, and
+        # reuse the warmed list to time the next wake-up.
+        all_fissures = await self._bot.data_source.fetch_fissures()
         await self._refresh_kind(
             await self._bot.tracked_repo.list_all(),
             self._bot.tracked_repo,
@@ -81,6 +94,18 @@ class FissureRefresher:
             await self._dispatch_notifications()
         except Exception:
             log.exception("notification dispatch failed")
+        return self._next_wake_seconds(all_fissures)
+
+    def _next_wake_seconds(self, fissures) -> float:
+        """Sleep until just after the soonest fissure expires (when the cache
+        next refetches), capped by the baseline interval so vendors/alerts still
+        refresh regularly and floored so we never busy-loop."""
+        now = datetime.now(timezone.utc)
+        future = [f.expires_at for f in fissures if f.expires_at > now]
+        if not future:
+            return self._interval
+        secs = (min(future) - now).total_seconds() + self._EXPIRY_BUFFER_SECONDS
+        return max(self._MIN_WAKE_SECONDS, min(self._interval, secs))
 
     async def _dispatch_notifications(self) -> None:
         """Edge-trigger DMs to subscribers when matching fissures go live.

@@ -95,6 +95,47 @@ async def test_tick_with_no_tracked_channels_still_warms_cache(bot):
     assert bot.tracked_repo.deleted == []
 
 
+def test_next_wake_aligns_to_soonest_expiry(bot):
+    from datetime import datetime, timedelta, timezone
+
+    from titania.domain.era import Era
+    from titania.domain.fissure import Fissure
+    from titania.domain.mission_type import MissionType
+
+    now = datetime.now(timezone.utc)
+
+    def _f(seconds):
+        return Fissure(
+            era=Era.LITH, mission_type=MissionType.CAPTURE, node="Hepit", planet="Void",
+            expires_at=now + timedelta(seconds=seconds),
+            is_steel_path=False, is_hard=False, tier=1,
+        )
+
+    refresher = FissureRefresher(bot, interval_seconds=30.0)
+    # Soonest expires in 6s -> wake ~6s + buffer, well under the 30s interval.
+    wake = refresher._next_wake_seconds([_f(6), _f(600)])
+    assert 6.0 < wake <= 6.0 + refresher._EXPIRY_BUFFER_SECONDS + 0.01
+
+    # Soonest expiry far out -> capped at the baseline interval.
+    assert refresher._next_wake_seconds([_f(600)]) == 30.0
+
+    # Mix with a just-expired one present: it's ignored, we align to the next
+    # future expiry (never a negative or busy-loop sleep).
+    wake = refresher._next_wake_seconds([_f(-5), _f(4)])
+    assert 4.0 < wake <= 4.0 + refresher._EXPIRY_BUFFER_SECONDS + 0.01
+
+    # Nothing with a future expiry -> fall back to the interval.
+    assert refresher._next_wake_seconds([_f(-5)]) == 30.0
+    assert refresher._next_wake_seconds([]) == 30.0
+
+
+async def test_tick_returns_a_wake_delay(bot):
+    refresher = FissureRefresher(bot)
+    wake = await refresher.tick()
+    assert isinstance(wake, float)
+    assert refresher._MIN_WAKE_SECONDS <= wake <= refresher._interval
+
+
 async def test_tick_auto_untracks_when_message_missing(bot):
     bot.tracked_repo.rows = [TrackedChannel(guild_id=1, channel_id=100, message_id=200)]
     # Channel fetch yields a channel whose fetch_message raises NotFound.
