@@ -55,6 +55,14 @@ class WarframeDataSource(Protocol):
         filters to notable Archon-shard / booster rewards."""
         ...
 
+    async def fetch_vault_trader(self) -> dict[str, Any]:
+        """Raw Varzia / Prime-Resurgence payload (warframestat's parsed
+        ``/vaultTrader``). Keys: ``location``, ``activation``, ``expiry``,
+        ``inventory`` and ``schedule`` (``{expiry, item}`` per rotation, future
+        ones included once announced); the varzia domain derives the current and
+        next featured rotation."""
+        ...
+
     async def aclose(self) -> None: ...
 
     async def __aenter__(self) -> "WarframeDataSource":

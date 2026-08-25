@@ -100,6 +100,14 @@ ASSET_TO_EMOJI: dict[str, EmojiSource] = {
     "baro": LocalSource("ducats.png"),
     "narmer": LocalSource("narmer.png"),
     "cavia": LocalSource("cavia.png"),  # Bird3 (Shiny Treasures) marker
+    # 1999 calendar section marker — the Hex emblem.
+    "calendar": LocalSource("HexIcon.png"),
+    # Varzia (Prime Resurgence) section marker — her Aya currency.
+    "varzia": LocalSource("aya.png"),
+    # Booster reward marker for the calendar block. WFCD ships no booster icon,
+    # so this is an optional bundled asset: drop titania/assets/booster.png to
+    # give boosters a real icon; until then the renderer falls back to a glyph.
+    "booster": LocalSource("booster.png"),
     # Archon Hunt shards. Which Archon awards which colour is fixed by DE, so
     # these are the real in-game shard icons shown on the vendors summary.
     "archon_shard_azure": RemoteSource("ArchonShardBoreal.png"),  # Boreal

@@ -102,6 +102,9 @@ class FallbackDataSource:
     async def fetch_calendar(self) -> dict:
         return await self._primary.fetch_calendar()
 
+    async def fetch_vault_trader(self) -> dict:
+        return await self._primary.fetch_vault_trader()
+
     async def aclose(self) -> None:
         await self._primary.aclose()
         await self._fallback.aclose()

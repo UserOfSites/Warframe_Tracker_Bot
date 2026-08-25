@@ -64,6 +64,10 @@ class CachedDataSource:
         self._calendar_valid_until: datetime | None = None
         self._calendar_lock = asyncio.Lock()
 
+        self._vault_trader: dict[str, Any] | None = None
+        self._vault_trader_valid_until: datetime | None = None
+        self._vault_trader_lock = asyncio.Lock()
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (
@@ -233,6 +237,32 @@ class CachedDataSource:
             fresh = await self._inner.fetch_calendar()
             self._calendar = fresh
             self._calendar_valid_until = (
+                self._next_void_trader_transition(fresh, now) or now + self._fallback
+            )
+            return dict(fresh)
+
+    async def fetch_vault_trader(self) -> dict[str, Any]:
+        # Varzia rotates ~monthly; cache until the current window's transition
+        # (activation/expiry), falling back to the configured TTL if the payload
+        # has no usable timestamps.
+        now = datetime.now(timezone.utc)
+        if (
+            self._vault_trader is not None
+            and self._vault_trader_valid_until is not None
+            and now < self._vault_trader_valid_until
+        ):
+            return dict(self._vault_trader)
+        async with self._vault_trader_lock:
+            now = datetime.now(timezone.utc)
+            if (
+                self._vault_trader is not None
+                and self._vault_trader_valid_until is not None
+                and now < self._vault_trader_valid_until
+            ):
+                return dict(self._vault_trader)
+            fresh = await self._inner.fetch_vault_trader()
+            self._vault_trader = fresh
+            self._vault_trader_valid_until = (
                 self._next_void_trader_transition(fresh, now) or now + self._fallback
             )
             return dict(fresh)

@@ -73,6 +73,21 @@ class InMemoryFakeSource:
             ],
         }
 
+    async def fetch_vault_trader(self) -> dict:
+        # Static stand-in: an active Varzia rotation with an announced next one.
+        return {
+            "location": "Maroo's Bazaar (Mars)",
+            "activation": "1999-01-01T00:00:00.000Z",
+            "expiry": "2099-01-01T00:00:00.000Z",
+            "inventory": [],
+            "schedule": [
+                {"expiry": "2099-01-01T00:00:00.000Z",
+                 "item": "M P V Revenant Baruuk Prime Dual Pack"},
+                {"expiry": "2099-02-01T00:00:00.000Z",
+                 "item": "M P V Banshee Mirage Prime Dual Pack"},
+            ],
+        }
+
     async def fetch_node_catalog(self) -> frozenset[str]:
         # Tests + local dev: a small but realistic stand-in. Returns the union
         # of nodes referenced by the fixture, the default dojoshare list, and a

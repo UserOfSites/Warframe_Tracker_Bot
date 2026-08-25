@@ -6,6 +6,7 @@ import discord
 from titania.data.baro.history import humanize_since
 from titania.domain.alerts import AlertEntry
 from titania.domain.calendar import CalendarReward
+from titania.domain.varzia import VarziaRotation
 from titania.domain.baro import BaroBoard, EnrichedBaroItem
 from titania.domain.invasions import NotableInvasion
 from titania.domain.vendors import (
@@ -484,7 +485,8 @@ def _calendar_icon(reward: CalendarReward, registry: EmojiRegistry) -> str:
             if colour in lc:
                 return registry.get(key, "🔷")
         return "🔷"
-    return "⏫"  # booster — no dedicated in-game icon
+    # Booster — real icon if the optional asset is bundled, else a glyph.
+    return registry.get("booster", "⏫")
 
 
 def _render_calendar_value(
@@ -492,10 +494,26 @@ def _render_calendar_value(
 ) -> str:
     """One line per notable calendar reward (Archon shards + boosters). The
     caller omits the whole block when the list is empty."""
-    lines = ["📅 **Calendar (1999)**"]
+    lines = [f"{registry.get('calendar', '📅')} **Calendar (1999)**"]
     for r in rewards:
         day = f"{r.day} · " if r.day else ""
         lines.append(f"{_calendar_icon(r, registry)} {day}{r.reward}")
+    return "\n".join(lines)
+
+
+def _render_varzia_value(varzia: VarziaRotation, registry: EmojiRegistry) -> str:
+    """Varzia's current Prime Resurgence rotation, plus the next one when DE has
+    announced it. The caller omits the block when there's no active rotation."""
+    header = f"{registry.get('varzia', '🔮')} **Varzia** · Prime Resurgence"
+    ends = f"<t:{int(varzia.expiry.timestamp())}:R>"
+    lines = [header]
+    if varzia.current_featured:
+        lines.append(f"**{varzia.current_featured}** · ends {ends}")
+    else:
+        lines.append(f"Current rotation ends {ends}")
+    if varzia.next_featured:
+        # The next rotation begins when the current one ends.
+        lines.append(f"Next: **{varzia.next_featured}** · starts {ends}")
     return "\n".join(lines)
 
 
@@ -525,6 +543,7 @@ def build_vendors_embed(
     invasions: list[NotableInvasion] | None = None,
     invasion_icons: dict[str, str] | None = None,
     calendar: list[CalendarReward] | None = None,
+    varzia: VarziaRotation | None = None,
     inventory_mention: str | None = None,
 ) -> discord.Embed:
     """Multi-vendor **summary** embed — the one posted to tracked channels and
@@ -564,6 +583,10 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
+    # Varzia (Prime Resurgence) rides along while a rotation is active; omitted
+    # when the feed is stale/absent.
+    if varzia is not None:
+        sections.append(_render_varzia_value(varzia, registry))
     # Calendar (1999) rides along only when the active season awards an Archon
     # shard or a booster; omitted entirely otherwise.
     if calendar:
