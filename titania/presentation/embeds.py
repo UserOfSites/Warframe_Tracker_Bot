@@ -114,6 +114,14 @@ def _render_resets_block(
     return "\n".join(lines)
 
 
+def _cascade_title(translator: Translator, registry: EmojiRegistry) -> str:
+    """Void Cascade section title, prefixed with the :void_cascade: icon when
+    it's registered (falls back to the plain label otherwise)."""
+    label = translator.t("embed.section.cascade")
+    icon = registry.get("void_cascade", "")
+    return f"{icon} {label}" if icon else label
+
+
 def build_fissure_embed(
     board: FissureBoard,
     translator: Translator,
@@ -166,6 +174,16 @@ def build_fissure_embed(
             translator,
             registry,
             translator.t("embed.empty.dojoshare"),
+            excellent_nodes=excellent_nodes,
+            good_nodes=good_nodes,
+        ),
+        _render_section(
+            _cascade_title(translator, registry),
+            board.cascade,
+            board.generated_at,
+            translator,
+            registry,
+            translator.t("embed.empty.cascade"),
             excellent_nodes=excellent_nodes,
             good_nodes=good_nodes,
         ),

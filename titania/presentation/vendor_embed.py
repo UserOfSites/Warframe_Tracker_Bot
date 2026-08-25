@@ -477,16 +477,28 @@ _CALENDAR_SHARD_ICON: dict[str, str] = {
     "nira": "archon_shard_amber",
 }
 
+# Booster reward name -> its icon key. Order matters: the more specific "drop
+# chance" phrases must be tested before the plainer "resource" one.
+_CALENDAR_BOOSTER_ICON: tuple[tuple[str, str], ...] = (
+    ("resource drop chance", "booster_resource_drop_chance"),
+    ("mod drop chance", "booster_mod_drop_chance"),
+    ("affinity", "booster_affinity"),
+    ("credit", "booster_credit"),
+    ("resource", "booster_resource"),
+)
+
 
 def _calendar_icon(reward: CalendarReward, registry: EmojiRegistry) -> str:
+    lc = reward.reward.lower()
     if reward.kind == "shard":
-        lc = reward.reward.lower()
         for colour, key in _CALENDAR_SHARD_ICON.items():
             if colour in lc:
                 return registry.get(key, "🔷")
         return "🔷"
-    # Booster — real icon if the optional asset is bundled, else a glyph.
-    return registry.get("booster", "⏫")
+    for needle, key in _CALENDAR_BOOSTER_ICON:
+        if needle in lc:
+            return registry.get(key, "⏫")
+    return "⏫"  # booster of an unrecognised type
 
 
 def _render_calendar_value(
@@ -510,7 +522,7 @@ def _render_varzia_value(varzia: VarziaRotation, registry: EmojiRegistry) -> str
     lines = [f"{icon} **Varzia aya rotation** · ends {ends}"]
     lines.append(", ".join(varzia.current_frames) if varzia.current_frames
                  else (varzia.current_featured or "_Unknown_"))
-    lines.append("**Next Varzia rotation**")
+    lines.append(f"{icon} **Next Varzia rotation**")
     if varzia.next_frames:
         lines.append(", ".join(varzia.next_frames))
     else:

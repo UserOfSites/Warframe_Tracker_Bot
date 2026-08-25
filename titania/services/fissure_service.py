@@ -34,12 +34,14 @@ def _compute_next_resets(fissures: list[Fissure]) -> list[NextReset]:
 class FissureService:
     """Builds the FissureBoard a guild sees.
 
-    Single-pass partition. The two curated sections are independent — a fissure
-    can appear in both:
+    Single-pass partition. Void Cascade (Tuvul Commons) is pulled out first as a
+    fixed Steel-Path-only section (its Normal variant is dropped). The two other
+    curated sections are independent — a fissure can appear in both:
       - Dojoshare:  is_steel_path AND node in dojoshare_nodes
       - Defences:   node in defence_nodes (Normal or SP), any mission type
-    A fissure landing in either curated section is NOT also placed in the
-    generic sections below. Anything not curated falls through to:
+    A fissure landing in any curated section (cascade/dojoshare/defences) is NOT
+    also placed in the generic sections below. Anything not curated falls
+    through to:
       - Steel Path: is_steel_path AND mission_type in allowed AND node not blocked
       - Normal:    !is_steel_path AND mission_type in allowed AND node not blocked
       otherwise: dropped.
@@ -84,13 +86,16 @@ class FissureService:
         steel_path: list[Fissure] = []
         dojoshare: list[Fissure] = []
         defences: list[Fissure] = []
+        cascade: list[Fissure] = []
 
         for f in all_fissures:
             node_lc = _normalize(f.node)
-            # Void Cascade (Tuvul Commons) is only worth running on Steel Path.
-            # Hide the Normal-difficulty variant everywhere — even if the node
-            # is pinned — so the board never shows a Normal cascade.
-            if node_lc == VOID_CASCADE_NODE_LC and not f.is_steel_path:
+            # Void Cascade (Tuvul Commons) is its own standalone Steel-Path-only
+            # section — no pin required. The Normal variant is never worth
+            # running, so it's dropped everywhere.
+            if node_lc == VOID_CASCADE_NODE_LC:
+                if f.is_steel_path:
+                    cascade.append(f)
                 continue
             # The two curated sections are independent opt-ins, so a fissure can
             # land in both. Dojoshare is Steel-Path-only; defences covers both
@@ -124,12 +129,14 @@ class FissureService:
         steel_path.sort(key=_sort_key)
         dojoshare.sort(key=_sort_key)
         defences.sort(key=_sort_key)
+        cascade.sort(key=_sort_key)
 
         return FissureBoard(
             normal=normal,
             steel_path=steel_path,
             defences=defences,
             dojoshare=dojoshare,
+            cascade=cascade,
             next_resets=_compute_next_resets(all_fissures),
             generated_at=datetime.now(timezone.utc),
         )

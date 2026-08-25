@@ -205,3 +205,31 @@ def test_registry_missing_emoji_falls_back_to_era_text(now, en):
     assert "<:" not in desc
     assert "Lith" in desc
     assert "Neo" in desc
+
+
+def test_cascade_section_renders_with_icon(now, en):
+    from titania.presentation.embeds import build_fissure_embed as _build
+
+    class _Reg(_StubRegistry):
+        def __init__(self):
+            super().__init__()
+            self._markup["void_cascade"] = "<:void_cascade:9>"
+
+    board = FissureBoard(
+        normal=[], steel_path=[], dojoshare=[],
+        cascade=[_fissure(Era.OMNIA, MissionType.OTHER, "Tuvul Commons", "Zariman",
+                          now + timedelta(minutes=20), is_steel_path=True)],
+        next_resets=[], generated_at=now,
+    )
+    desc = _build(board, en, _Reg()).description or ""
+    assert "<:void_cascade:9> Void Cascade" in desc
+    assert "Tuvul Commons" in desc
+
+
+def test_cascade_section_shows_empty_hint(now, en, registry):
+    board = FissureBoard(
+        normal=[], steel_path=[], dojoshare=[], cascade=[],
+        next_resets=[], generated_at=now,
+    )
+    desc = build_fissure_embed(board, en, registry).description or ""
+    assert "No Steel Path Void Cascade right now." in desc

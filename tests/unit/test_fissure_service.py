@@ -123,28 +123,27 @@ async def test_dedup_sp_dojoshare_node_not_duplicated_into_steel_path():
     assert "Acheron" not in {f.node for f in board.steel_path}
 
 
-async def test_void_cascade_normal_hidden_even_when_pinned():
-    # Both Normal and SP Void Cascade active, node pinned. The Normal one must
-    # be hidden from every section; the SP one still shows (pin bypasses the
-    # fast-type filter, so it lands in Steel Path).
+async def test_void_cascade_sp_goes_to_standalone_section_no_pin_needed():
+    # SP Void Cascade is its own section — no pin/dojoshare listing required.
+    # The Normal variant is dropped everywhere.
     board = await _board_from(
         [_cascade(steel_path=False), _cascade(steel_path=True)],
-        _settings(pinned=frozenset({"Tuvul Commons"})),
+        _settings(),
     )
-    all_shown = board.normal + board.steel_path + board.dojoshare + board.defences
-    cascades = [(f.node, f.is_steel_path) for f in all_shown if f.node == "Tuvul Commons"]
-    assert cascades == [("Tuvul Commons", True)]
+    assert {(f.node, f.is_steel_path) for f in board.cascade} == {("Tuvul Commons", True)}
+    other = board.normal + board.steel_path + board.dojoshare + board.defences
+    assert "Tuvul Commons" not in {f.node for f in other}
 
 
-async def test_void_cascade_sp_still_shown_in_dojoshare_when_listed():
-    # If Tuvul Commons is a dojoshare node, the SP cascade shows there; the
-    # Normal cascade is still dropped.
+async def test_void_cascade_stays_in_cascade_even_if_listed_as_dojoshare():
+    # The dedicated cascade section wins over the dojoshare bucket for Tuvul
+    # Commons, so it never double-lists.
     board = await _board_from(
-        [_cascade(steel_path=False), _cascade(steel_path=True)],
+        [_cascade(steel_path=True)],
         _settings(dojoshare=frozenset({"Tuvul Commons"})),
     )
-    assert {(f.node, f.is_steel_path) for f in board.dojoshare} == {("Tuvul Commons", True)}
-    assert "Tuvul Commons" not in {f.node for f in board.normal}
+    assert {f.node for f in board.cascade} == {"Tuvul Commons"}
+    assert "Tuvul Commons" not in {f.node for f in board.dojoshare}
 
 
 async def test_overlap_node_sp_fissure_appears_in_both_dojoshare_and_defences():

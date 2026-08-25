@@ -124,3 +124,25 @@ def test_embed_uses_shard_icon_when_registered():
     rewards = [CalendarReward(day="Feb 16", reward="Archon Crystal Boreal", kind="shard")]
     embed = build_vendors_embed(_board(), Translator("en"), _Reg(), calendar=rewards)
     assert "<:archon_shard_azure:9>" in (embed.description or "")
+
+
+def test_embed_uses_per_type_booster_icons():
+    class _Reg(EmojiRegistry):
+        def __init__(self):
+            super().__init__()
+            self._markup = {
+                "booster_mod_drop_chance": "<:mdc:1>",
+                "booster_resource_drop_chance": "<:rdc:2>",
+                "booster_resource": "<:res:3>",
+            }
+
+    rewards = [
+        CalendarReward(day="Jan 21", reward="3 Day Mod Drop Chance Booster", kind="booster"),
+        CalendarReward(day="Jan 22", reward="3 Day Resource Drop Chance Booster", kind="booster"),
+        CalendarReward(day="Jan 23", reward="3 Day Resource Booster", kind="booster"),
+    ]
+    desc = build_vendors_embed(_board(), Translator("en"), _Reg(), calendar=rewards).description or ""
+    assert "<:mdc:1> Jan 21 · 3 Day Mod Drop Chance Booster" in desc
+    # "Resource Drop Chance" must not be mis-matched as the plainer "Resource".
+    assert "<:rdc:2> Jan 22 · 3 Day Resource Drop Chance Booster" in desc
+    assert "<:res:3> Jan 23 · 3 Day Resource Booster" in desc

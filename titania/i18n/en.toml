@@ -6,6 +6,7 @@ normal = "Normal"
 steel_path = "Steel Path"
 defences = "Defences"
 dojoshare = "Dojoshare"
+cascade = "Void Cascade"
 next_resets = "Next resets"
 
 [embed.empty]
@@ -13,6 +14,7 @@ normal = "No fast Normal fissures right now."
 steel_path = "No fast Steel Path fissures right now."
 defences = "No defence fissures right now."
 dojoshare = "No dojoshare fissures right now."
+cascade = "No Steel Path Void Cascade right now."
 next_resets = "No active fissures."
 
 [embed.next_resets_block]
