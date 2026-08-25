@@ -125,6 +125,39 @@ class ReactionSubscriber:
                 continue
             await self.seed_reactions(message)
 
+    async def handle_clear(
+        self,
+        payload: "discord.RawReactionClearEvent | discord.RawReactionClearEmojiEvent",
+    ) -> None:
+        """Someone cleared reactions on a tracker message — re-seed our topic
+        icons so the subscription buttons come straight back.
+
+        Subscriptions are untouched by this: they live in the DB and are only
+        removed on a per-user reaction *remove*, not a bulk clear. A bot can't
+        restore other users' reactions, but those users stay subscribed and keep
+        getting DMs regardless of the (now cosmetic) missing highlight."""
+        if payload.guild_id is None:
+            return
+        if not await self._is_tracker_message(payload.guild_id, payload.message_id):
+            return
+        await self._reseed_message(payload.channel_id, payload.message_id)
+
+    async def _reseed_message(self, channel_id: int, message_id: int) -> None:
+        try:
+            channel = (
+                self._bot.get_channel(channel_id)
+                or await self._bot.fetch_channel(channel_id)
+            )
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+        if not isinstance(channel, discord.abc.Messageable):
+            return
+        try:
+            message = await channel.fetch_message(message_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+        await self.seed_reactions(message)
+
     def _topic_for_emoji(self, emoji: discord.PartialEmoji) -> FissureTopic | None:
         if emoji.id is not None:
             return self._topic_by_emoji_id.get(emoji.id)

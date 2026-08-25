@@ -120,6 +120,16 @@ class TitaniaBot(commands.Bot):
     async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
         await self.reaction_subscriber.handle_remove(payload)
 
+    async def on_raw_reaction_clear(self, payload: discord.RawReactionClearEvent) -> None:
+        # A bulk "clear reactions" wipes our seed icons but doesn't unsubscribe
+        # anyone (that's per-user removes only) — re-seed so the buttons return.
+        await self.reaction_subscriber.handle_clear(payload)
+
+    async def on_raw_reaction_clear_emoji(
+        self, payload: discord.RawReactionClearEmojiEvent
+    ) -> None:
+        await self.reaction_subscriber.handle_clear(payload)
+
     async def on_ready(self) -> None:
         log.info("logged in as %s (id=%s)", self.user, self.user.id if self.user else "?")
         await self.change_presence(
