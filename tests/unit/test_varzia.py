@@ -21,7 +21,7 @@ def _raw(schedule, expiry="2026-09-03T18:00:00.000Z", location="Maroo's Bazaar (
     }
 
 
-def test_current_and_next_from_schedule():
+def test_current_and_next_frames_from_schedule():
     raw = _raw([
         {"expiry": "2026-08-06T18:00:00.000Z", "item": "M P V Old Prime Pack"},  # past
         {"expiry": "2026-09-03T18:00:00.000Z", "item": "M P V Revenant Baruuk Prime Dual Pack"},
@@ -29,19 +29,24 @@ def test_current_and_next_from_schedule():
     ])
     rot = varzia_rotation(raw, now=_NOW)
     assert rot is not None
-    assert rot.current_featured == "Revenant Baruuk Prime Dual Pack"  # MPV prefix stripped
-    assert rot.next_featured == "Banshee Mirage Prime Dual Pack"
+    assert rot.current_frames == ("Revenant", "Baruuk")  # MPV/Prime/Pack stripped
+    assert rot.next_frames == ("Banshee", "Mirage")
     assert rot.expiry == datetime(2026, 9, 3, 18, tzinfo=timezone.utc)
-    assert rot.next_expiry == datetime(2026, 10, 1, 18, tzinfo=timezone.utc)
+
+
+def test_single_frame_rotation():
+    raw = _raw([{"expiry": "2026-09-03T18:00:00.000Z", "item": "M P V Oberon Prime Single Pack"}])
+    rot = varzia_rotation(raw, now=_NOW)
+    assert rot is not None
+    assert rot.current_frames == ("Oberon",)
 
 
 def test_next_is_none_when_only_current_announced():
     raw = _raw([{"expiry": "2026-09-03T18:00:00.000Z", "item": "M P V Revenant Baruuk Prime Dual Pack"}])
     rot = varzia_rotation(raw, now=_NOW)
     assert rot is not None
-    assert rot.current_featured == "Revenant Baruuk Prime Dual Pack"
-    assert rot.next_featured is None
-    assert rot.next_expiry is None
+    assert rot.current_frames == ("Revenant", "Baruuk")
+    assert rot.next_frames is None
 
 
 def test_none_when_window_expired():
@@ -57,15 +62,15 @@ def test_none_on_missing_payload():
 def test_current_empty_when_schedule_absent_but_window_active():
     rot = varzia_rotation(_raw([]), now=_NOW)
     assert rot is not None
-    assert rot.current_featured == ""
-    assert rot.next_featured is None
+    assert rot.current_frames == ()
+    assert rot.next_frames is None
 
 
 async def test_service_reads_fake_fixture():
     rot = await VarziaService(InMemoryFakeSource.from_fixtures()).rotation()
     assert rot is not None
-    assert rot.current_featured == "Revenant Baruuk Prime Dual Pack"
-    assert rot.next_featured == "Banshee Mirage Prime Dual Pack"
+    assert rot.current_frames == ("Revenant", "Baruuk")
+    assert rot.next_frames == ("Banshee", "Mirage")
 
 
 async def test_service_swallows_errors():
@@ -86,18 +91,34 @@ def _board():
     return BaroBoard(state=state, enriched_inventory=(), generated_at=now)
 
 
-def test_embed_renders_varzia_with_current_and_next():
-    rot = VarziaRotation(
+def _rot(next_frames):
+    return VarziaRotation(
         location="Maroo's Bazaar (Mars)",
         expiry=datetime(2026, 9, 3, 18, tzinfo=timezone.utc),
+        current_frames=("Revenant", "Baruuk"),
         current_featured="Revenant Baruuk Prime Dual Pack",
-        next_featured="Banshee Mirage Prime Dual Pack",
-        next_expiry=datetime(2026, 10, 1, 18, tzinfo=timezone.utc),
+        next_frames=next_frames,
     )
-    desc = build_vendors_embed(_board(), Translator("en"), EmojiRegistry(), varzia=rot).description or ""
-    assert "Varzia" in desc and "Prime Resurgence" in desc
-    assert "Revenant Baruuk Prime Dual Pack" in desc
-    assert "Next: **Banshee Mirage Prime Dual Pack**" in desc
+
+
+def test_embed_renders_varzia_on_top_with_frames():
+    desc = build_vendors_embed(
+        _board(), Translator("en"), EmojiRegistry(), varzia=_rot(("Banshee", "Mirage"))
+    ).description or ""
+    assert "Varzia aya rotation" in desc
+    assert "Revenant, Baruuk" in desc
+    assert "Next Varzia rotation" in desc
+    assert "Banshee, Mirage" in desc
+    # Varzia sits above Baro.
+    assert desc.index("Varzia aya rotation") < desc.index("Baro")
+
+
+def test_embed_varzia_next_countdown_when_unannounced():
+    desc = build_vendors_embed(
+        _board(), Translator("en"), EmojiRegistry(), varzia=_rot(None)
+    ).description or ""
+    assert "Next Varzia rotation" in desc
+    assert "Not yet announced" in desc
 
 
 def test_embed_omits_varzia_when_none():

@@ -502,18 +502,20 @@ def _render_calendar_value(
 
 
 def _render_varzia_value(varzia: VarziaRotation, registry: EmojiRegistry) -> str:
-    """Varzia's current Prime Resurgence rotation, plus the next one when DE has
-    announced it. The caller omits the block when there's no active rotation."""
-    header = f"{registry.get('varzia', '🔮')} **Varzia** · Prime Resurgence"
+    """Varzia's current Prime Resurgence rotation (frames + time left) and the
+    next one — the announced frames, or a countdown when not yet announced. The
+    caller omits the block when there's no active rotation."""
     ends = f"<t:{int(varzia.expiry.timestamp())}:R>"
-    lines = [header]
-    if varzia.current_featured:
-        lines.append(f"**{varzia.current_featured}** · ends {ends}")
+    icon = registry.get("varzia", "🔮")
+    lines = [f"{icon} **Varzia aya rotation** · ends {ends}"]
+    lines.append(", ".join(varzia.current_frames) if varzia.current_frames
+                 else (varzia.current_featured or "_Unknown_"))
+    lines.append("**Next Varzia rotation**")
+    if varzia.next_frames:
+        lines.append(", ".join(varzia.next_frames))
     else:
-        lines.append(f"Current rotation ends {ends}")
-    if varzia.next_featured:
-        # The next rotation begins when the current one ends.
-        lines.append(f"Next: **{varzia.next_featured}** · starts {ends}")
+        # Not announced yet — the next rotation goes live when this one ends.
+        lines.append(f"_Not yet announced_ · in {ends}")
     return "\n".join(lines)
 
 
@@ -551,6 +553,9 @@ def build_vendors_embed(
 
     Rolls up several vendors at a glance:
 
+    - **Varzia (Prime Resurgence)** — shown on top while a rotation is active:
+      the current rotation's frames + time left, then the next rotation's frames
+      (or a countdown when DE hasn't announced them yet).
     - **Baro Ki'Teer** — arrival countdown when absent; relay + a clickable
       link to the ephemeral inventory when present (the full item grid lives in
       :func:`build_baro_inventory_embed`, not here).
@@ -577,16 +582,17 @@ def build_vendors_embed(
         color=discord.Color.gold(),
         timestamp=board.generated_at,
     )
-    sections = [
+    sections: list[str] = []
+    # Varzia (Prime Resurgence) sits on top of the weekly vendors while a
+    # rotation is active; omitted when the feed is stale/absent.
+    if varzia is not None:
+        sections.append(_render_varzia_value(varzia, registry))
+    sections += [
         _render_baro_summary(board, inventory_mention, registry),
         _render_teshin_value(teshin, registry),
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
-    # Varzia (Prime Resurgence) rides along while a rotation is active; omitted
-    # when the feed is stale/absent.
-    if varzia is not None:
-        sections.append(_render_varzia_value(varzia, registry))
     # Calendar (1999) rides along only when the active season awards an Archon
     # shard or a booster; omitted entirely otherwise.
     if calendar:

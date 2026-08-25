@@ -13,13 +13,23 @@ from datetime import datetime, timezone
 from typing import Any
 
 
+# Words in a pack name that aren't the Warframe itself. Whatever remains after
+# dropping these is the frame list ("Revenant Baruuk Prime Dual Pack" ->
+# Revenant, Baruuk). Prime frame names are all single words, so a plain split is
+# safe.
+_PACK_DESCRIPTORS = frozenset({
+    "prime", "dual", "single", "triple", "pack", "accessories", "accessory",
+    "set", "armor", "armour",
+})
+
+
 @dataclass(frozen=True)
 class VarziaRotation:
     location: str
     expiry: datetime  # when the current rotation ends
-    current_featured: str  # e.g. "Revenant Baruuk Prime Dual Pack" ("" if unknown)
-    next_featured: str | None = None  # announced next rotation, else None
-    next_expiry: datetime | None = None  # when that next rotation ends
+    current_frames: tuple[str, ...]  # e.g. ("Revenant", "Baruuk")
+    current_featured: str  # raw headline, e.g. "Revenant Baruuk Prime Dual Pack"
+    next_frames: tuple[str, ...] | None = None  # None when not yet announced
 
 
 def _parse_dt(raw: Any) -> datetime | None:
@@ -41,6 +51,11 @@ def _clean_item(name: str) -> str:
             text = text[len(prefix):]
             break
     return text.strip()
+
+
+def _frames_from_pack(featured: str) -> tuple[str, ...]:
+    """``"Revenant Baruuk Prime Dual Pack"`` -> ``("Revenant", "Baruuk")``."""
+    return tuple(w for w in featured.split() if w.lower() not in _PACK_DESCRIPTORS)
 
 
 def varzia_rotation(
@@ -69,13 +84,11 @@ def varzia_rotation(
     upcoming.sort(key=lambda e: e[0])
 
     current_featured = upcoming[0][1] if upcoming else ""
-    next_featured, next_expiry = (
-        (upcoming[1][1], upcoming[1][0]) if len(upcoming) >= 2 else (None, None)
-    )
+    next_frames = _frames_from_pack(upcoming[1][1]) if len(upcoming) >= 2 else None
     return VarziaRotation(
         location=str(raw.get("location") or "Maroo's Bazaar (Mars)"),
         expiry=expiry,
+        current_frames=_frames_from_pack(current_featured),
         current_featured=current_featured,
-        next_featured=next_featured,
-        next_expiry=next_expiry,
+        next_frames=next_frames,
     )
