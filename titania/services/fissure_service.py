@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from titania.data.source import WarframeDataSource
 from titania.domain.era import ERA_TIER, Era
 from titania.domain.fissure import Fissure, FissureBoard, NextReset
+from titania.domain.node import VOID_CASCADE_NODE_LC
 from titania.domain.railjack import is_railjack
 from titania.services.guild_settings import GuildSettingsResolver
 
@@ -86,6 +87,11 @@ class FissureService:
 
         for f in all_fissures:
             node_lc = _normalize(f.node)
+            # Void Cascade (Tuvul Commons) is only worth running on Steel Path.
+            # Hide the Normal-difficulty variant everywhere — even if the node
+            # is pinned — so the board never shows a Normal cascade.
+            if node_lc == VOID_CASCADE_NODE_LC and not f.is_steel_path:
+                continue
             # The two curated sections are independent opt-ins, so a fissure can
             # land in both. Dojoshare is Steel-Path-only; defences covers both
             # Normal and Steel Path. A node in both lists (Stephano, Io, Ani,

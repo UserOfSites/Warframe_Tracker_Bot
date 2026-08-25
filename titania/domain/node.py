@@ -1,5 +1,11 @@
 from dataclasses import dataclass
 
+# Tuvul Commons (Zariman) is the Void Cascade node. It only rotates as an Omnia
+# fissure and is only worth running on Steel Path, so the tracker hides its
+# Normal-difficulty variant and the notification topic is Steel-Path-only.
+# Lower-cased for direct comparison against a normalised node name.
+VOID_CASCADE_NODE_LC = "tuvul commons"
+
 
 @dataclass(frozen=True)
 class NodeInfo:

@@ -20,7 +20,7 @@ _TOPIC_BY_EMOJI_KEY: dict[str, FissureTopic] = {
     # No dedicated asset — resolves to the 🛡️ Unicode fallback below.
     "defence": FissureTopic.DEFENCES,
     "clan_xp": FissureTopic.DOJOSHARE,
-    "omnia_relic": FissureTopic.SP_TUVUL_CASCADE,
+    "void_cascade": FissureTopic.SP_TUVUL_CASCADE,
 }
 
 # Unicode fallbacks per topic. Used if the matching application emoji isn't

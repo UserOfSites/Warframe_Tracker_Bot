@@ -3,8 +3,7 @@ from typing import Iterable
 
 from titania.domain.fissure import Fissure
 from titania.domain.mission_type import FAST_MISSIONS
-
-_TUVUL_COMMONS_LC = "tuvul commons"
+from titania.domain.node import VOID_CASCADE_NODE_LC
 
 
 class FissureTopic(StrEnum):
@@ -66,5 +65,5 @@ def fissure_matches_topic(
     if topic is FissureTopic.SP_TUVUL_CASCADE:
         # Tuvul Commons IS the Void Cascade node — checking node alone is
         # sufficient and robust to MissionType.OTHER for new game modes.
-        return f.is_steel_path and node_lc == _TUVUL_COMMONS_LC
+        return f.is_steel_path and node_lc == VOID_CASCADE_NODE_LC
     return False

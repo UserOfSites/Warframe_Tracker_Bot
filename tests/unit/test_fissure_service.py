@@ -1,5 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 from titania.data.fake.source import InMemoryFakeSource
-from titania.domain.mission_type import FAST_MISSIONS
+from titania.domain.era import Era
+from titania.domain.fissure import Fissure
+from titania.domain.mission_type import FAST_MISSIONS, MissionType
 from titania.services.fissure_service import FissureService
 from titania.services.guild_settings import GuildSettings, static_resolver
 
@@ -26,6 +30,21 @@ def _settings(
 async def _board(settings: GuildSettings):
     source = InMemoryFakeSource.from_fixtures()
     service = FissureService(source, static_resolver(settings))
+    return await service.board_for_guild(None)
+
+
+def _cascade(*, steel_path: bool) -> Fissure:
+    """A Tuvul Commons (Void Cascade) Omnia fissure. Void Cascade parses to
+    MissionType.OTHER, matching the live game."""
+    return Fissure(
+        era=Era.OMNIA, mission_type=MissionType.OTHER, node="Tuvul Commons",
+        planet="Zariman", expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        is_steel_path=steel_path, is_hard=False, tier=6,
+    )
+
+
+async def _board_from(fissures, settings: GuildSettings):
+    service = FissureService(InMemoryFakeSource(fissures), static_resolver(settings))
     return await service.board_for_guild(None)
 
 
@@ -102,6 +121,30 @@ async def test_dedup_sp_dojoshare_node_not_duplicated_into_steel_path():
     # must land in dojoshare only — not duplicated into Steel Path.
     assert "Acheron" in {f.node for f in board.dojoshare}
     assert "Acheron" not in {f.node for f in board.steel_path}
+
+
+async def test_void_cascade_normal_hidden_even_when_pinned():
+    # Both Normal and SP Void Cascade active, node pinned. The Normal one must
+    # be hidden from every section; the SP one still shows (pin bypasses the
+    # fast-type filter, so it lands in Steel Path).
+    board = await _board_from(
+        [_cascade(steel_path=False), _cascade(steel_path=True)],
+        _settings(pinned=frozenset({"Tuvul Commons"})),
+    )
+    all_shown = board.normal + board.steel_path + board.dojoshare + board.defences
+    cascades = [(f.node, f.is_steel_path) for f in all_shown if f.node == "Tuvul Commons"]
+    assert cascades == [("Tuvul Commons", True)]
+
+
+async def test_void_cascade_sp_still_shown_in_dojoshare_when_listed():
+    # If Tuvul Commons is a dojoshare node, the SP cascade shows there; the
+    # Normal cascade is still dropped.
+    board = await _board_from(
+        [_cascade(steel_path=False), _cascade(steel_path=True)],
+        _settings(dojoshare=frozenset({"Tuvul Commons"})),
+    )
+    assert {(f.node, f.is_steel_path) for f in board.dojoshare} == {("Tuvul Commons", True)}
+    assert "Tuvul Commons" not in {f.node for f in board.normal}
 
 
 async def test_overlap_node_sp_fissure_appears_in_both_dojoshare_and_defences():

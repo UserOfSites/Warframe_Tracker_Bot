@@ -78,6 +78,11 @@ ASSET_TO_EMOJI: dict[str, EmojiSource] = {
     "neo_relic": RemoteSource("RelicNeoD.png"),
     "axi_relic": RemoteSource("RelicAxiD.png"),
     "omnia_relic": LocalSource("void.png"),  # no CDN equivalent for Omnia
+    # Steel-Path Void Cascade subscription button. Reuses the teal void flame
+    # art but registered under its own name so the reaction reads :void_cascade:
+    # rather than the era-marker :omnia_relic:. Drop a dedicated
+    # titania/assets/void_cascade.png here to give it distinct artwork.
+    "void_cascade": LocalSource("void.png"),
     "steel_path": RemoteSource("SteelEssence.png"),
     # Currencies. Ducat icon ships on cdn.warframestat.us; the credit icon
     # doesn't, so it's bundled locally as a hand-picked asset.
