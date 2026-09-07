@@ -1,15 +1,16 @@
 """Digital Extremes official worldState source — the authoritative live feed.
 
-Used as the fissure *fallback* behind :class:`FallbackDataSource`: when the
-primary (warframestat) stalls, this pulls fissures straight from DE's CDN at
-``https://api.warframe.com/cdn/worldState.php``, which stays fresh independently.
+Used as the fissure fallback behind :class:`~titania.data.failover.FailoverDataSource`:
+when the primary (warframestat) stalls, this pulls fissures straight from DE's
+CDN at ``https://api.warframe.com/cdn/worldState.php``, which stays fresh
+independently.
 
 Node names come from ``/solnodes`` (static reference data) since DE's document
 only carries ``SolNode`` ids. Non-fissure worldstate methods return empty
 defaults: this source exists to keep *fissures* alive when the primary is down,
-and the fallback wrapper serves every other section from the primary. Wiring the
-full DE document (Baro inventory, alerts, invasions) through here would be a
-much larger adaptation and isn't needed for that job.
+so the failover wrapper serves those other sections from whichever source does
+answer. Wiring the full DE document (Baro inventory, alerts, invasions) through
+here would be a much larger adaptation and isn't needed for that job.
 """
 
 import asyncio
