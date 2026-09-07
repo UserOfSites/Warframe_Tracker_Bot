@@ -114,3 +114,63 @@ def test_settlement_node_resolves_in_fissure_adapt():
     f = adapt_worldstate_fissures(payload, node_map)[0]
     assert f.node == "Skyresh" and f.planet == "Phobos"
     assert f.mission_type is MissionType.CAPTURE
+
+
+# --- vendor adapters ---------------------------------------------------------
+from titania.data.official.adapters import (  # noqa: E402
+    adapt_archon_hunt,
+    adapt_void_trader,
+)
+from titania.domain.vendors import resolve_archon  # noqa: E402
+
+
+def _ms_of(dt):
+    return {"$date": {"$numberLong": str(int(dt.timestamp() * 1000))}}
+
+
+def test_adapt_archon_hunt_boss_resolves():
+    payload = {"LiteSorties": [{"Boss": "SORTIE_BOSS_AMAR"}]}
+    out = adapt_archon_hunt(payload)
+    assert out == {"boss": "SORTIE_BOSS_AMAR"}
+    # The boss enum resolves through the existing shard mapping unchanged.
+    assert resolve_archon(out["boss"]).color == "red"
+
+
+def test_adapt_archon_hunt_empty_when_missing():
+    assert adapt_archon_hunt({}) == {}
+    assert adapt_archon_hunt({"LiteSorties": []}) == {}
+
+
+def test_adapt_void_trader_present_with_manifest():
+    now = datetime.now(timezone.utc)
+    payload = {"VoidTraders": [{
+        "Character": "Baro'Ki Teel", "Node": "MercuryHUB",
+        "Activation": _ms_of(now - timedelta(hours=1)),
+        "Expiry": _ms_of(now + timedelta(days=1)),
+        "Manifest": [
+            {"ItemType": "/Lotus/Types/StoreItems/Packages/MegaPrimeVault/MPVBansheePrimeSinglePack", "PrimePrice": 6},
+            {"ItemType": "/Lotus/StoreItems/Powersuits/Banshee/BansheePrime", "PrimePrice": 3},
+        ],
+    }]}
+    vt = adapt_void_trader(payload)
+    assert vt["location"] == "Larunda Relay (Mercury)"
+    assert vt["character"] == "Baro Ki'Teer"
+    assert len(vt["inventory"]) == 2  # non-empty => VoidTraderState.is_present
+    assert vt["inventory"][1] == {"item": "Banshee Prime", "ducats": 3}
+
+
+def test_adapt_void_trader_absent_has_empty_inventory():
+    now = datetime.now(timezone.utc)
+    payload = {"VoidTraders": [{
+        "Node": "PlutoHUB",
+        "Activation": _ms_of(now + timedelta(days=3)),
+        "Expiry": _ms_of(now + timedelta(days=5)),
+        # No Manifest while Baro is away.
+    }]}
+    vt = adapt_void_trader(payload)
+    assert vt["location"] == "Orcus Relay (Pluto)"
+    assert vt["inventory"] == []  # => is_present False => "arrives" line
+
+
+def test_adapt_void_trader_empty_when_missing():
+    assert adapt_void_trader({}) == {}

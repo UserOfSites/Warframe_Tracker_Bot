@@ -12,6 +12,7 @@ catalog, which the caller supplies as ``node_map`` (that endpoint is static
 reference data and stays live even when DE's live worldstate feed does not).
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,6 +20,20 @@ from titania.data.warframestat.source import _split_node_value
 from titania.domain.era import ERA_TIER, Era
 from titania.domain.fissure import Fissure
 from titania.domain.mission_type import MissionType, parse_mission_type
+
+# DE identifies Baro's relay by an internal hub key; map the seven to the
+# human relay names (stable — relays effectively never change).
+_RELAY_BY_HUB: dict[str, str] = {
+    "MercuryHUB": "Larunda Relay (Mercury)",
+    "VenusHUB": "Vesper Relay (Venus)",
+    "EarthHUB": "Strata Relay (Earth)",
+    "SaturnHUB": "Kronia Relay (Saturn)",
+    "ErisHUB": "Kuiper Relay (Eris)",
+    "EuropaHUB": "Leonov Relay (Europa)",
+    "PlutoHUB": "Orcus Relay (Pluto)",
+}
+
+_CAMEL_SPLIT = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|\d+")
 
 # Star-chart node-key prefixes that host regular missions (and therefore
 # fissures). Phobos is the odd one out — its nodes use the historical
@@ -119,3 +134,50 @@ def adapt_worldstate_fissures(
             )
         )
     return out
+
+
+def _name_from_lotus_path(path: str) -> str:
+    """Best-effort readable name from a Lotus item path. DE doesn't ship the
+    friendly names warframestat resolves, so this is a degraded stand-in used
+    only when failing over to DE for Baro's inventory:
+    ``".../MPVBansheePrimeSinglePack"`` -> ``"MPV Banshee Prime Single Pack"``."""
+    leaf = path.rstrip("/").rsplit("/", 1)[-1]
+    words = _CAMEL_SPLIT.findall(leaf)
+    return " ".join(words) if words else leaf
+
+
+def adapt_void_trader(payload: dict[str, Any]) -> dict[str, Any]:
+    """DE ``VoidTraders`` -> warframestat ``voidTrader`` shape. Item names are
+    approximate (Lotus paths), but the summary line only needs the window +
+    relay, and presence is inferred from a non-empty inventory (the ``Manifest``
+    is present only while Baro is here)."""
+    traders = payload.get("VoidTraders") or []
+    if not traders or not isinstance(traders[0], dict):
+        return {}
+    t = traders[0]
+    activation = _epoch_millis(t.get("Activation", {}))
+    expiry = _epoch_millis(t.get("Expiry", {}))
+    inventory = [
+        {"item": _name_from_lotus_path(m["ItemType"]), "ducats": m.get("PrimePrice")}
+        for m in (t.get("Manifest") or [])
+        if isinstance(m, dict) and isinstance(m.get("ItemType"), str)
+    ]
+    node = t.get("Node", "")
+    return {
+        "character": "Baro Ki'Teer",
+        "location": _RELAY_BY_HUB.get(node, node),
+        "activation": activation.isoformat() if activation else None,
+        "expiry": expiry.isoformat() if expiry else None,
+        "inventory": inventory,
+    }
+
+
+def adapt_archon_hunt(payload: dict[str, Any]) -> dict[str, Any]:
+    """DE ``LiteSorties`` -> ``{"boss": ...}``. The boss enum
+    (``SORTIE_BOSS_AMAR``) contains the Archon name, which ``resolve_archon``
+    already matches as a substring, so no explicit mapping is needed."""
+    sorties = payload.get("LiteSorties") or []
+    if not sorties or not isinstance(sorties[0], dict):
+        return {}
+    boss = sorties[0].get("Boss")
+    return {"boss": boss} if isinstance(boss, str) else {}

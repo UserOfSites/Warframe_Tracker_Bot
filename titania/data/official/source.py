@@ -23,7 +23,12 @@ from typing import Any
 
 import httpx
 
-from titania.data.official.adapters import adapt_worldstate_fissures, build_node_map
+from titania.data.official.adapters import (
+    adapt_archon_hunt,
+    adapt_void_trader,
+    adapt_worldstate_fissures,
+    build_node_map,
+)
 from titania.domain.fissure import Fissure
 from titania.domain.node import NodeInfo
 
@@ -152,14 +157,20 @@ class OfficialWorldStateSource:
             if name
         }
 
-    # Non-fissure worldstate: not adapted from DE here (see module docstring).
-    # The fallback wrapper serves these from the primary source.
     async def fetch_void_trader(self) -> dict[str, Any]:
-        return {}
+        # Baro summary failover: the window + relay are exact; inventory item
+        # names are approximate (DE ships Lotus paths, not friendly names).
+        resp = await self._get_with_retry(self._worldstate_url)
+        resp.raise_for_status()
+        return adapt_void_trader(resp.json())
 
     async def fetch_archon_hunt(self) -> dict[str, Any]:
-        return {}
+        resp = await self._get_with_retry(self._worldstate_url)
+        resp.raise_for_status()
+        return adapt_archon_hunt(resp.json())
 
+    # Not adapted from DE (Lotus-path rewards / missing schedule); the failover
+    # wrapper serves these from whichever source answers.
     async def fetch_alerts(self) -> list[dict[str, Any]]:
         return []
 
