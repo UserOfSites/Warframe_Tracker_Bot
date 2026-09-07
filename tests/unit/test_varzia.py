@@ -124,3 +124,34 @@ def test_embed_varzia_next_countdown_when_unannounced():
 def test_embed_omits_varzia_when_none():
     desc = build_vendors_embed(_board(), Translator("en"), EmojiRegistry(), varzia=None).description or ""
     assert "Varzia" not in desc
+
+
+# --- source-down notice ------------------------------------------------------
+from titania.domain.calendar import CalendarReward as _CR  # noqa: E402
+
+
+def test_embed_shows_down_notice_when_source_unavailable():
+    # Even with Varzia/calendar data available, an unavailable source shows the
+    # notice and hides those sections (can't tell "empty" from "missing").
+    rot = _rot(("Banshee", "Mirage"))
+    cal = [_CR(day="Jan 21", reward="3 Day Mod Drop Chance Booster", kind="booster")]
+    desc = build_vendors_embed(
+        _board(), Translator("en"), EmojiRegistry(),
+        varzia=rot, calendar=cal, source_available=False,
+    ).description or ""
+    assert "temporarily\ndown" in desc or "temporarily down" in desc
+    assert "Varzia rotation, calendar, alerts & invasions" in desc
+    assert "Banshee, Mirage" not in desc       # varzia section hidden
+    assert "Mod Drop Chance Booster" not in desc  # calendar hidden
+    # Baro / Teshin still render.
+    assert "Baro Ki'Teer" in desc
+
+
+def test_embed_shows_sections_when_source_available():
+    rot = _rot(("Banshee", "Mirage"))
+    desc = build_vendors_embed(
+        _board(), Translator("en"), EmojiRegistry(),
+        varzia=rot, source_available=True,
+    ).description or ""
+    assert "Varzia aya rotation" in desc
+    assert "temporarily down" not in desc

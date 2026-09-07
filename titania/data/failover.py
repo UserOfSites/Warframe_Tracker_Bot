@@ -58,6 +58,14 @@ class FailoverDataSource:
         # Last source that served fissures, tracked only to log switch-overs.
         self._active: str | None = None
 
+    def primary_healthy(self) -> bool:
+        """Whether the primary (full-featured) source is currently healthy.
+        The fallback (DE) can't serve Varzia/calendar/alerts/invasions, so the
+        vendors embed uses this to decide between showing those sections and a
+        'temporarily down' notice."""
+        name = self._sources[0][0]
+        return self._unhealthy_until.get(name, 0.0) <= time.monotonic()
+
     def _ordered(self) -> list[tuple[str, WarframeDataSource]]:
         """Sources to try, in priority order, skipping those in cooldown. If
         every source is cooling down, try them all anyway (best effort beats

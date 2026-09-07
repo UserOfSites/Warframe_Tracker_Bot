@@ -68,6 +68,12 @@ class CachedDataSource:
         self._vault_trader_valid_until: datetime | None = None
         self._vault_trader_lock = asyncio.Lock()
 
+    def primary_healthy(self) -> bool:
+        """Pass through the wrapped source's health signal (True if it doesn't
+        track health, e.g. a single non-failover source)."""
+        fn = getattr(self._inner, "primary_healthy", None)
+        return fn() if callable(fn) else True
+
     async def fetch_fissures(self) -> list[Fissure]:
         now = datetime.now(timezone.utc)
         if (

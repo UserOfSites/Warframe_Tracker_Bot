@@ -170,3 +170,18 @@ def test_requires_at_least_one_source():
     import pytest
     with pytest.raises(ValueError):
         FailoverDataSource([])
+
+
+async def test_primary_healthy_reflects_primary_state():
+    primary = _Src(down=True)
+    fallback = _Src(fissures=[_fissure("Hepit")])
+    fds = _failover(primary, fallback, cooldown_seconds=1000)
+    assert fds.primary_healthy() is True          # nothing tried yet
+    await fds.fetch_fissures()                     # primary raises -> unhealthy
+    assert fds.primary_healthy() is False
+    # Recover after cooldown.
+    fds._unhealthy_until["primary"] = 0.0
+    primary.down = False
+    primary._fissures = [_fissure("Ukko")]
+    await fds.fetch_fissures()
+    assert fds.primary_healthy() is True

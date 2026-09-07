@@ -192,6 +192,11 @@ class FissureRefresher:
         invasions = await self._bot.invasion_service.notable()
         calendar = await self._bot.calendar_service.notable()
         varzia = await self._bot.varzia_service.rotation()
+        # Varzia/calendar/alerts/invasions only come from the primary source; if
+        # it's down, show a notice instead of dropping them silently.
+        source_available = getattr(
+            self._bot.data_source, "primary_healthy", lambda: True
+        )()
         # Upload each notable invasion's reward icon on demand (they're rare, so
         # this stays off the hot path in practice) and map image_name → markup.
         invasion_icons: dict[str, str] = {}
@@ -211,6 +216,7 @@ class FissureRefresher:
             invasion_icons=invasion_icons,
             calendar=calendar,
             varzia=varzia,
+            source_available=source_available,
             inventory_mention=self._bot.command_mention("vendors inventory"),
         )
 
