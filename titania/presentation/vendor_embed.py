@@ -532,13 +532,11 @@ def _render_varzia_value(varzia: VarziaRotation, registry: EmojiRegistry) -> str
 
 
 def _render_source_down_notice() -> str:
-    """Shown in place of the source-only vendor sections (Varzia, calendar,
-    alerts, invasions) when the upstream that provides them is unreachable — so
-    the reader knows the data is temporarily missing, not simply empty."""
-    return (
-        "⚠️ **Varzia rotation, calendar, alerts & invasions** are temporarily "
-        "down — please come back later."
-    )
+    """Shown only when the upstream that provides the source-only vendors
+    (Varzia, calendar, alerts, invasions) is down *and* nothing is cached to
+    show — so the reader knows the data is temporarily missing, not just
+    empty."""
+    return "⚠️ **Varzia rotation, calendar, alerts & invasions** are temporarily down."
 
 
 def _render_invasions_value(
@@ -606,12 +604,9 @@ def build_vendors_embed(
         timestamp=board.generated_at,
     )
     sections: list[str] = []
-    # Varzia, calendar, alerts and invasions come only from the primary source
-    # (DE can't serve them). When it's down we can't tell "empty" from "missing",
-    # so show a notice instead of silently dropping them. Baro, Teshin, Archon
-    # Hunt and Bird 3 still render (served from DE or computed locally).
-    if source_available and varzia is not None:
-        # Varzia (Prime Resurgence) sits on top of the weekly vendors.
+    # Varzia (Prime Resurgence) sits on top of the weekly vendors whenever we
+    # have it — including cached data served during a primary outage.
+    if varzia is not None:
         sections.append(_render_varzia_value(varzia, registry))
     sections += [
         _render_baro_summary(board, inventory_mention, registry),
@@ -619,18 +614,23 @@ def build_vendors_embed(
         _render_archon_value(archon, registry),
         _render_shard_offer_value(shiny_treasures, registry),
     ]
-    if source_available:
-        # Calendar (1999) rides along only when the active season awards an
-        # Archon shard or a booster; omitted otherwise.
-        if calendar:
-            sections.append(_render_calendar_value(calendar, registry))
-        # Invasions ride along only when a notable reward is up.
-        if invasions:
-            sections.append(_render_invasions_value(invasions, invasion_icons or {}))
-        # Alerts ride along whenever any is active.
-        if alerts:
-            sections.append(_render_alerts_value(alerts))
-    else:
+    # Calendar (1999) rides along only when the active season awards an Archon
+    # shard or a booster; omitted otherwise.
+    if calendar:
+        sections.append(_render_calendar_value(calendar, registry))
+    # Invasions ride along only when a notable reward is up.
+    if invasions:
+        sections.append(_render_invasions_value(invasions, invasion_icons or {}))
+    # Alerts ride along whenever any is active.
+    if alerts:
+        sections.append(_render_alerts_value(alerts))
+    # Varzia, calendar, alerts and invasions come only from the primary source
+    # (DE can't serve them). Show a notice only when it's down *and* none of
+    # them have data — so cached data still shows, and a genuinely-empty state
+    # during an outage isn't mistaken for a legitimate one.
+    if not source_available and not (
+        varzia is not None or calendar or invasions or alerts
+    ):
         sections.append(_render_source_down_notice())
     # Single newline between blocks (not a blank line) keeps the list compact.
     embed.description = "\n\n".join(sections)
