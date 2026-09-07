@@ -96,7 +96,22 @@ class OfficialWorldStateSource:
             now = time.monotonic()
             if self._node_map is not None and (now - self._node_map_at) < _NODE_MAP_TTL:
                 return self._node_map
-            self._node_map = await self._node_map_from_solnodes()
+            try:
+                fresh = await self._node_map_from_solnodes()
+            except (httpx.HTTPError, ValueError):
+                # /solnodes lives on warframestat, which is the source we're
+                # falling back *from* — so it's often down at the same time.
+                # A missing node map must NOT kill the fissure list: fall back
+                # to the last-known map, or none at all (the adapter then shows
+                # raw node ids but keeps era/SP/mission-type/timers intact).
+                # Don't stamp _node_map_at, so we retry on the next call.
+                log.warning(
+                    "node-map fetch from %s failed; serving fissures with "
+                    "%s node names", self._solnodes_url,
+                    "last-known" if self._node_map else "raw",
+                )
+                return self._node_map or {}
+            self._node_map = fresh
             self._node_map_at = time.monotonic()
             return self._node_map
 
