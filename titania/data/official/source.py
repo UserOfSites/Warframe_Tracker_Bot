@@ -14,8 +14,11 @@ here would be a much larger adaptation and isn't needed for that job.
 """
 
 import asyncio
+import json
 import logging
 import time
+from functools import lru_cache
+from importlib import resources
 from typing import Any
 
 import httpx
@@ -39,6 +42,20 @@ _NODE_MAP_TTL = 24 * 3600
 
 # DE's CDN 403s empty/default user agents; present a browser-ish one.
 _UA = "Mozilla/5.0 (compatible; TitaniaBot/1.0)"
+
+
+@lru_cache(maxsize=1)
+def _bundled_node_map() -> dict[str, tuple[str, str, str]]:
+    """Offline SolNode->name/planet/type map bundled in the repo. Lets fissure
+    node names resolve even when warframestat's ``/solnodes`` is unreachable (it
+    lives on the same host we're failing over from). A snapshot of static
+    reference data — refresh it from WFCD's ``solNodes.json`` on a game update."""
+    raw = (
+        resources.files("titania.data.official")
+        .joinpath("solnodes_snapshot.json")
+        .read_text(encoding="utf-8")
+    )
+    return build_node_map(json.loads(raw))
 
 
 class OfficialWorldStateSource:
@@ -102,16 +119,17 @@ class OfficialWorldStateSource:
             except (httpx.HTTPError, ValueError):
                 # /solnodes lives on warframestat, which is the source we're
                 # falling back *from* — so it's often down at the same time.
-                # A missing node map must NOT kill the fissure list: fall back
-                # to the last-known map, or none at all (the adapter then shows
-                # raw node ids but keeps era/SP/mission-type/timers intact).
-                # Don't stamp _node_map_at, so we retry on the next call.
+                # A missing node map must NOT kill the fissure list: use the
+                # last-known map, else the bundled offline snapshot, so node
+                # names still resolve. Don't stamp _node_map_at, so we retry
+                # the live endpoint on the next call.
+                fallback = self._node_map or _bundled_node_map()
                 log.warning(
                     "node-map fetch from %s failed; serving fissures with "
                     "%s node names", self._solnodes_url,
-                    "last-known" if self._node_map else "raw",
+                    "last-known" if self._node_map else "bundled-snapshot",
                 )
-                return self._node_map or {}
+                return fallback
             self._node_map = fresh
             self._node_map_at = time.monotonic()
             return self._node_map

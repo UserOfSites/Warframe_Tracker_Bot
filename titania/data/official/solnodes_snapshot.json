@@ -1,0 +1,1270 @@
+{
+"SettlementNode1": {
+"type": "Extermination",
+"value": "Roche (Phobos)"
+},
+"SettlementNode10": {
+"type": "Rush (Archwing)",
+"value": "Kepler (Phobos)"
+},
+"SettlementNode11": {
+"type": "Defense",
+"value": "Gulliver (Phobos)"
+},
+"SettlementNode12": {
+"type": "Rescue",
+"value": "Monolith (Phobos)"
+},
+"SettlementNode13": {
+"type": "Ancient Retribution",
+"value": "D'Arrest (Phobos)"
+},
+"SettlementNode14": {
+"type": "Spy",
+"value": "Shklovsky (Phobos)"
+},
+"SettlementNode15": {
+"type": "Mobile Defense",
+"value": "Sharpless (Phobos)"
+},
+"SettlementNode16": {
+"type": "Ancient Retribution",
+"value": "Wendell (Phobos)"
+},
+"SettlementNode17": {
+"type": "Ancient Retribution",
+"value": "Flimnap (Phobos)"
+},
+"SettlementNode18": {
+"type": "Ancient Retribution",
+"value": "Opik (Phobos)"
+},
+"SettlementNode19": {
+"type": "Ancient Retribution",
+"value": "Todd (Phobos)"
+},
+"SettlementNode2": {
+"type": "Capture",
+"value": "Skyresh (Phobos)"
+},
+"SettlementNode20": {
+"type": "Assassination",
+"value": "Iliad (Phobos)"
+},
+"SettlementNode3": {
+"type": "Survival",
+"value": "Stickney (Phobos)"
+},
+"SettlementNode4": {
+"type": "Ancient Retribution",
+"value": "Drunlo (Phobos)"
+},
+"SettlementNode5": {
+"type": "Ancient Retribution",
+"value": "Grildrig (Phobos)"
+},
+"SettlementNode6": {
+"type": "Ancient Retribution",
+"value": "Limtoc (Phobos)"
+},
+"SettlementNode7": {
+"type": "Ancient Retribution",
+"value": "Hall (Phobos)"
+},
+"SettlementNode8": {
+"type": "Ancient Retribution",
+"value": "Reldresal (Phobos)"
+},
+"SettlementNode9": {
+"type": "Ancient Retribution",
+"value": "Clustril (Phobos)"
+},
+"SolNode1": {
+"type": "Capture",
+"value": "Galatea (Neptune)"
+},
+"SolNode10": {
+"type": "Sabotage",
+"value": "Thebe (Jupiter)"
+},
+"SolNode100": {
+"type": "Survival",
+"value": "Elara (Jupiter)"
+},
+"SolNode101": {
+"type": "Excavation",
+"value": "Kiliken (Venus)"
+},
+"SolNode102": {
+"type": "Spy",
+"value": "Oceanum (Pluto)"
+},
+"SolNode103": {
+"type": "Extermination",
+"value": "M Prime (Mercury)"
+},
+"SolNode104": {
+"type": "Assassination",
+"value": "Fossa (Venus)"
+},
+"SolNode105": {
+"type": "Assassination",
+"value": "Titania (Uranus)"
+},
+"SolNode106": {
+"type": "Interception",
+"value": "Alator (Mars)"
+},
+"SolNode107": {
+"type": "Capture",
+"value": "Venera (Venus)"
+},
+"SolNode108": {
+"type": "Assassination",
+"value": "Tolstoj (Mercury)"
+},
+"SolNode109": {
+"type": "Rescue",
+"value": "Linea (Venus)"
+},
+"SolNode11": {
+"type": "Mobile Defense",
+"value": "Tharsis (Mars)"
+},
+"SolNode110": {
+"type": "Ancient Retribution",
+"value": "Hyperion (Saturn)"
+},
+"SolNode111": {
+"type": "Ancient Retribution",
+"value": "Juliet (Uranus)"
+},
+"SolNode112": {
+"type": "Ancient Retribution",
+"value": "Setebos (Uranus)"
+},
+"SolNode113": {
+"type": "Sabotage",
+"value": "Ares (Mars)"
+},
+"SolNode114": {
+"type": "Extermination",
+"value": "Puck (Uranus)"
+},
+"SolNode115": {
+"type": "Ancient Retribution",
+"value": "Quirinus (Mars)"
+},
+"SolNode116": {
+"type": "Ancient Retribution",
+"value": "Mab (Uranus)"
+},
+"SolNode117": {
+"type": "Ancient Retribution",
+"value": "Naiad (Neptune)"
+},
+"SolNode118": {
+"type": "Disruption",
+"value": "Laomedeia (Neptune)"
+},
+"SolNode119": {
+"type": "Rescue",
+"value": "Caloris (Mercury)"
+},
+"SolNode12": {
+"type": "Capture",
+"value": "Elion (Mercury)"
+},
+"SolNode120": {
+"type": "Ancient Retribution",
+"value": "Halimede (Neptune)"
+},
+"SolNode121": {
+"type": "Extermination",
+"value": "Carpo (Jupiter)"
+},
+"SolNode122": {
+"type": "Defense",
+"value": "Stephano (Uranus)"
+},
+"SolNode123": {
+"type": "Survival",
+"value": "V Prime (Venus)"
+},
+"SolNode124": {
+"type": "Ancient Retribution",
+"value": "Trinculo (Uranus)"
+},
+"SolNode125": {
+"type": "Defense",
+"value": "Io (Jupiter)"
+},
+"SolNode126": {
+"type": "Rescue",
+"value": "Metis (Jupiter)"
+},
+"SolNode127": {
+"type": "Assassination",
+"value": "Psamathe (Neptune)"
+},
+"SolNode128": {
+"type": "Extermination",
+"value": "E Gate (Venus)"
+},
+"SolNode129": {
+"type": "Free Roam",
+"value": "Orb Vallis (Venus)"
+},
+"SolNode13": {
+"type": "Ancient Retribution",
+"value": "Bianca (Uranus)"
+},
+"SolNode130": {
+"type": "Defense",
+"value": "Lares (Mercury)"
+},
+"SolNode131": {
+"type": "Extermination",
+"value": "Pallas (Ceres)"
+},
+"SolNode132": {
+"type": "Spy",
+"value": "Bode (Ceres)"
+},
+"SolNode133": {
+"type": "Ancient Retribution",
+"value": "Vedic (Ceres)"
+},
+"SolNode134": {
+"type": "Ancient Retribution",
+"value": "Varro (Ceres)"
+},
+"SolNode135": {
+"type": "Sabotage",
+"value": "Thon (Ceres)"
+},
+"SolNode136": {
+"type": "Ancient Retribution",
+"value": "Olla (Ceres)"
+},
+"SolNode137": {
+"type": "Rescue",
+"value": "Nuovo (Ceres)"
+},
+"SolNode138": {
+"type": "Hijack",
+"value": "Ludi (Ceres)"
+},
+"SolNode139": {
+"type": "Capture",
+"value": "Lex (Ceres)"
+},
+"SolNode14": {
+"type": "Extermination",
+"value": "Ultor (Mars)"
+},
+"SolNode140": {
+"type": "Mobile Defense",
+"value": "Kiste (Ceres)"
+},
+"SolNode141": {
+"type": "Sabotage",
+"value": "Ker (Ceres)"
+},
+"SolNode142": {
+"type": "Ancient Retribution",
+"value": "Hapke (Ceres)"
+},
+"SolNode143": {
+"type": "Ancient Retribution",
+"value": "Gefion (Ceres)"
+},
+"SolNode144": {
+"type": "Assassination",
+"value": "Exta (Ceres)"
+},
+"SolNode145": {
+"type": "Ancient Retribution",
+"value": "Egeria (Ceres)"
+},
+"SolNode146": {
+"type": "Survival",
+"value": "Draco (Ceres)"
+},
+"SolNode147": {
+"type": "Interception",
+"value": "Cinxia (Ceres)"
+},
+"SolNode148": {
+"type": "",
+"value": "Cerium (Ceres)"
+},
+"SolNode149": {
+"type": "Defense",
+"value": "Casta (Ceres)"
+},
+"SolNode15": {
+"type": "Rescue",
+"value": "Pacific (Earth)"
+},
+"SolNode150": {
+"type": "Ancient Retribution",
+"value": "Albedo (Ceres)"
+},
+"SolNode151": {
+"type": "Ancient Retribution",
+"value": "Acanth (Eris)"
+},
+"SolNode152": {
+"type": "Ancient Retribution",
+"value": "Ascar (Eris)"
+},
+"SolNode153": {
+"type": "Rescue",
+"value": "Brugia (Eris)"
+},
+"SolNode154": {
+"type": "Ancient Retribution",
+"value": "Candiru (Eris)"
+},
+"SolNode155": {
+"type": "Ancient Retribution",
+"value": "Cosis (Eris)"
+},
+"SolNode156": {
+"type": "Ancient Retribution",
+"value": "Cyath (Eris)"
+},
+"SolNode157": {
+"type": "Ancient Retribution",
+"value": "Giardia (Eris)"
+},
+"SolNode158": {
+"type": "Ancient Retribution",
+"value": "Gnathos (Eris)"
+},
+"SolNode159": {
+"type": "Ancient Retribution",
+"value": "Lepis (Eris)"
+},
+"SolNode16": {
+"type": "Excavation",
+"value": "Augustus (Mars)"
+},
+"SolNode160": {
+"type": "Ancient Retribution",
+"value": "Histo (Eris)"
+},
+"SolNode161": {
+"type": "Ancient Retribution",
+"value": "Hymeno (Eris)"
+},
+"SolNode162": {
+"type": "Capture",
+"value": "Isos (Eris)"
+},
+"SolNode163": {
+"type": "",
+"value": "Ixodes (Eris)"
+},
+"SolNode164": {
+"type": "Defense",
+"value": "Kala-azar (Eris)"
+},
+"SolNode165": {
+"type": "Hive Sabotage",
+"value": "Sporid (Eris)"
+},
+"SolNode166": {
+"type": "Survival",
+"value": "Nimus (Eris)"
+},
+"SolNode167": {
+"type": "Infested Salvage",
+"value": "Oestrus (Eris)"
+},
+"SolNode168": {
+"type": "Ancient Retribution",
+"value": "Phalan (Eris)"
+},
+"SolNode169": {
+"type": "Ancient Retribution",
+"value": "Psoro (Eris)"
+},
+"SolNode17": {
+"type": "Defense",
+"value": "Proteus (Neptune)"
+},
+"SolNode170": {
+"type": "Ancient Retribution",
+"value": "Ranova (Eris)"
+},
+"SolNode171": {
+"type": "Extermination",
+"value": "Saxis (Eris)"
+},
+"SolNode172": {
+"type": "Interception",
+"value": "Xini (Eris)"
+},
+"SolNode173": {
+"type": "Mobile Defense",
+"value": "Solium (Eris)"
+},
+"SolNode174": {
+"type": "Ancient Retribution",
+"value": "Sparga (Eris)"
+},
+"SolNode175": {
+"type": "Hive",
+"value": "Naeglar (Eris)"
+},
+"SolNode176": {
+"type": "Ancient Retribution",
+"value": "Viver (Eris)"
+},
+"SolNode177": {
+"type": "Disruption",
+"value": "Kappa (Sedna)"
+},
+"SolNode178": {
+"type": "Ancient Retribution",
+"value": "Hyosube (Sedna)"
+},
+"SolNode179": {
+"type": "Ancient Retribution",
+"value": "Jengu (Sedna)"
+},
+"SolNode18": {
+"type": "Interception",
+"value": "Rhea (Saturn)"
+},
+"SolNode180": {
+"type": "Ancient Retribution",
+"value": "Undine (Sedna)"
+},
+"SolNode181": {
+"type": "Extermination",
+"value": "Adaro (Sedna)"
+},
+"SolNode182": {
+"type": "Ancient Retribution",
+"value": "Camenae (Sedna)"
+},
+"SolNode183": {
+"type": "Arena",
+"value": "Vodyanoi (Sedna)"
+},
+"SolNode184": {
+"type": "Sabotage",
+"value": "Rusalka (Sedna)"
+},
+"SolNode185": {
+"type": "Interception",
+"value": "Berehynia (Sedna)"
+},
+"SolNode186": {
+"type": "Sabotage",
+"value": "Phithale (Sedna)"
+},
+"SolNode187": {
+"type": "Survival",
+"value": "Selkie (Sedna)"
+},
+"SolNode188": {
+"type": "Spy",
+"value": "Kelpie (Sedna)"
+},
+"SolNode189": {
+"type": "Rescue",
+"value": "Naga (Sedna)"
+},
+"SolNode19": {
+"type": "Sabotage",
+"value": "Enceladus (Saturn)"
+},
+"SolNode190": {
+"type": "Arena",
+"value": "Nakki (Sedna)"
+},
+"SolNode191": {
+"type": "Hijack",
+"value": "Marid (Sedna)"
+},
+"SolNode192": {
+"type": "Spy",
+"value": "Tikoloshe (Sedna)"
+},
+"SolNode193": {
+"type": "Assassination",
+"value": "Merrow (Sedna)"
+},
+"SolNode194": {
+"type": "Ancient Retribution",
+"value": "Ponaturi (Sedna)"
+},
+"SolNode195": {
+"type": "Defense",
+"value": "Hydron (Sedna)"
+},
+"SolNode196": {
+"type": "Mobile Defense",
+"value": "Charybdis (Sedna)"
+},
+"SolNode197": {
+"type": "Ancient Retribution",
+"value": "Graeae (Sedna)"
+},
+"SolNode198": {
+"type": "Ancient Retribution",
+"value": "Scylla (Sedna)"
+},
+"SolNode199": {
+"type": "Arena",
+"value": "Yam (Sedna)"
+},
+"SolNode2": {
+"type": "Mobile Defense",
+"value": "Aphrodite (Venus)"
+},
+"SolNode20": {
+"type": "Extermination",
+"value": "Telesto (Saturn)"
+},
+"SolNode200": {
+"type": "Ancient Retribution",
+"value": "Veles (Sedna)"
+},
+"SolNode201": {
+"type": "Ancient Retribution",
+"value": "Tiamat (Sedna)"
+},
+"SolNode202": {
+"type": "Ancient Retribution",
+"value": "Yemaja (Sedna)"
+},
+"SolNode203": {
+"type": "Capture",
+"value": "Abaddon (Europa)"
+},
+"SolNode204": {
+"type": "Extermination",
+"value": "Armaros (Europa)"
+},
+"SolNode205": {
+"type": "Extermination",
+"value": "Baal (Europa)"
+},
+"SolNode206": {
+"type": "",
+"value": "Eligor (Europa)"
+},
+"SolNode207": {
+"type": "Ancient Retribution",
+"value": "Gamygyn (Europa)"
+},
+"SolNode208": {
+"type": "Ancient Retribution",
+"value": "Lillith (Europa)"
+},
+"SolNode209": {
+"type": "Mobile Defense",
+"value": "Morax (Europa)"
+},
+"SolNode21": {
+"type": "Extermination",
+"value": "Narcissus (Pluto)"
+},
+"SolNode210": {
+"type": "Assassination",
+"value": "Naamah (Europa)"
+},
+"SolNode211": {
+"type": "Interception",
+"value": "Ose (Europa)"
+},
+"SolNode212": {
+"type": "Defense",
+"value": "Paimon (Europa)"
+},
+"SolNode213": {
+"type": "",
+"value": "Shax (Europa)"
+},
+"SolNode214": {
+"type": "Hijack",
+"value": "Sorath (Europa)"
+},
+"SolNode215": {
+"type": "Spy",
+"value": "Valac (Europa)"
+},
+"SolNode216": {
+"type": "Excavation",
+"value": "Valefor (Europa)"
+},
+"SolNode217": {
+"type": "Rescue",
+"value": "Orias (Europa)"
+},
+"SolNode218": {
+"type": "Ancient Retribution",
+"value": "Zagan (Europa)"
+},
+"SolNode219": {
+"type": "Ancient Retribution",
+"value": "Beleth (Europa)"
+},
+"SolNode22": {
+"type": "Defense",
+"value": "Tessera (Venus)"
+},
+"SolNode220": {
+"type": "Sabotage",
+"value": "Kokabiel (Europa)"
+},
+"SolNode221": {
+"type": "Ancient Retribution",
+"value": "Neruda (Mercury)"
+},
+"SolNode222": {
+"type": "Ancient Retribution",
+"value": "Eminescu (Mercury)"
+},
+"SolNode223": {
+"type": "Mobile Defense",
+"value": "Boethius (Mercury)"
+},
+"SolNode224": {
+"type": "Interception",
+"value": "Odin (Mercury)"
+},
+"SolNode225": {
+"type": "Spy",
+"value": "Suisei (Mercury)"
+},
+"SolNode226": {
+"type": "Extermination",
+"value": "Pantheon (Mercury)"
+},
+"SolNode227": {
+"type": "",
+"value": "Verdi (Mercury)"
+},
+"SolNode228": {
+"type": "Free Roam",
+"value": "Plains of Eidolon (Earth)"
+},
+"SolNode229": {
+"type": "Free Roam",
+"value": "Cambion Drift (Deimos)"
+},
+"SolNode23": {
+"type": "Interception",
+"value": "Cytherean (Venus)"
+},
+"SolNode230": {
+"type": "Void Flood",
+"value": "Everview Arc (Zariman)"
+},
+"SolNode231": {
+"type": "Extermination",
+"value": "Halako Perimeter (Zariman)"
+},
+"SolNode232": {
+"type": "Void Cascade",
+"value": "Tuvul Commons (Zariman)"
+},
+"SolNode233": {
+"type": "Void Armageddon",
+"value": "Oro Works (Zariman)"
+},
+"SolNode234": {
+"type": "Relay",
+"value": "Dormizone (Zariman)"
+},
+"SolNode235": {
+"type": "Mobile Defense",
+"value": "The Greenway (Zariman)"
+},
+"SolNode236": {
+"type": "Free Roam",
+"value": "The Duviri Experience (Duviri)"
+},
+"SolNode237": {
+"type": "Free Roam",
+"value": "The Lone Story (Duviri)"
+},
+"SolNode238": {
+"type": "Free Roam",
+"value": "The Circuit (Duviri)"
+},
+"SolNode239": {
+"type": "Relay",
+"value": "Vesper Relay (Venus)"
+},
+"SolNode24": {
+"type": "Assassination",
+"value": "Oro (Earth)"
+},
+"SolNode25": {
+"type": "Interception",
+"value": "Callisto (Jupiter)"
+},
+"SolNode251": {
+"type": "The Perita Rebellion",
+"value": "Dark Refactory (Deimos)"
+},
+"SolNode26": {
+"type": "Defense",
+"value": "Lith (Earth)"
+},
+"SolNode27": {
+"type": "Extermination",
+"value": "E Prime (Earth)"
+},
+"SolNode28": {
+"type": "Sabotage",
+"value": "Terminus (Mercury)"
+},
+"SolNode29": {
+"type": "Ancient Retribution",
+"value": "Oberon (Uranus)"
+},
+"SolNode3": {
+"type": "Ancient Retribution",
+"value": "Cordelia (Uranus)"
+},
+"SolNode30": {
+"type": "Disruption",
+"value": "Olympus (Mars)"
+},
+"SolNode300": {
+"type": "Extermination",
+"value": "Plato (Lua)"
+},
+"SolNode301": {
+"type": "Mobile Defense",
+"value": "Grimaldi (Lua)"
+},
+"SolNode302": {
+"type": "Survival",
+"value": "Tycho (Lua)"
+},
+"SolNode304": {
+"type": "Capture",
+"value": "Copernicus (Lua)"
+},
+"SolNode305": {
+"type": "Defense",
+"value": "Stöfler (Lua)"
+},
+"SolNode306": {
+"type": "Spy",
+"value": "Pavlov (Lua)"
+},
+"SolNode307": {
+"type": "Rescue",
+"value": "Zeipel (Lua)"
+},
+"SolNode308": {
+"type": "Disruption",
+"value": "Apollo (Lua)"
+},
+"SolNode309": {
+"type": "Survival",
+"value": "Yuvarium (Lua)"
+},
+"SolNode31": {
+"type": "Rescue",
+"value": "Anthe (Saturn)"
+},
+"SolNode310": {
+"type": "Survival",
+"value": "Circulus (Lua)"
+},
+"SolNode32": {
+"type": "Assassination",
+"value": "Tethys (Saturn)"
+},
+"SolNode33": {
+"type": "Capture",
+"value": "Ariel (Uranus)"
+},
+"SolNode34": {
+"type": "Extermination",
+"value": "Sycorax (Uranus)"
+},
+"SolNode35": {
+"type": "Ancient Retribution",
+"value": "Arcadia (Mars)"
+},
+"SolNode36": {
+"type": "Rescue",
+"value": "Martialis (Mars)"
+},
+"SolNode37": {
+"type": "Ancient Retribution",
+"value": "Pallene (Saturn)"
+},
+"SolNode38": {
+"type": "Mobile Defense",
+"value": "Minthe (Pluto)"
+},
+"SolNode39": {
+"type": "Excavation",
+"value": "Everest (Earth)"
+},
+"SolNode4": {
+"type": "Extermination",
+"value": "Acheron (Pluto)"
+},
+"SolNode40": {
+"type": "Ancient Retribution",
+"value": "Prospero (Uranus)"
+},
+"SolNode400": {
+"type": "Extermination",
+"value": "Teshub (Void)"
+},
+"SolNode401": {
+"type": "Capture",
+"value": "Hepit (Void)"
+},
+"SolNode402": {
+"type": "Defense",
+"value": "Taranis (Void)"
+},
+"SolNode403": {
+"type": "Mobile Defense",
+"value": "Tiwaz (Void)"
+},
+"SolNode404": {
+"type": "Orokin Sabotage",
+"value": "Stribog (Void)"
+},
+"SolNode405": {
+"type": "Survival",
+"value": "Ani (Void)"
+},
+"SolNode406": {
+"type": "Capture",
+"value": "Ukko (Void)"
+},
+"SolNode407": {
+"type": "Extermination",
+"value": "Oxomoco (Void)"
+},
+"SolNode408": {
+"type": "Defense",
+"value": "Belenus (Void)"
+},
+"SolNode409": {
+"type": "Survival",
+"value": "Mot (Void)"
+},
+"SolNode41": {
+"type": "Spy",
+"value": "Arval (Mars)"
+},
+"SolNode410": {
+"type": "Mobile Defense",
+"value": "Aten (Void)"
+},
+"SolNode411": {
+"type": "Sabotage",
+"value": "Marduk (Void)"
+},
+"SolNode412": {
+"type": "Interception",
+"value": "Mithra (Void)"
+},
+"SolNode413": {
+"type": "Ancient Retribution",
+"value": "SolNode413 (Void)"
+},
+"SolNode42": {
+"type": "Defense",
+"value": "Helene (Saturn)"
+},
+"SolNode43": {
+"type": "Interception",
+"value": "Cerberus (Pluto)"
+},
+"SolNode44": {
+"type": "Ancient Retribution",
+"value": "Mimas (Saturn)"
+},
+"SolNode45": {
+"type": "Capture",
+"value": "Ara (Mars)"
+},
+"SolNode450": {
+"type": "Mirror Defense",
+"value": "Tyana Pass (Mars)"
+},
+"SolNode46": {
+"type": "Defense",
+"value": "Spear (Mars)"
+},
+"SolNode47": {
+"type": "Ancient Retribution",
+"value": "Janus (Saturn)"
+},
+"SolNode48": {
+"type": "Rescue",
+"value": "Regna (Pluto)"
+},
+"SolNode49": {
+"type": "Mobile Defense",
+"value": "Larissa (Neptune)"
+},
+"SolNode5": {
+"type": "Ancient Retribution",
+"value": "Perdita (Uranus)"
+},
+"SolNode50": {
+"type": "Rescue",
+"value": "Numa (Saturn)"
+},
+"SolNode51": {
+"type": "Assassination",
+"value": "Hades (Pluto)"
+},
+"SolNode52": {
+"type": "Ancient Retribution",
+"value": "Portia (Uranus)"
+},
+"SolNode53": {
+"type": "Assassination",
+"value": "Themisto (Jupiter)"
+},
+"SolNode54": {
+"type": "Ancient Retribution",
+"value": "Silvanus (Mars)"
+},
+"SolNode55": {
+"type": "Ancient Retribution",
+"value": "Methone (Saturn)"
+},
+"SolNode56": {
+"type": "Sabotage",
+"value": "Cypress (Pluto)"
+},
+"SolNode57": {
+"type": "Sabotage",
+"value": "Sao (Neptune)"
+},
+"SolNode58": {
+"type": "Extermination",
+"value": "Hellas (Mars)"
+},
+"SolNode59": {
+"type": "Mobile Defense",
+"value": "Eurasia (Earth)"
+},
+"SolNode6": {
+"type": "Excavation",
+"value": "Despina (Neptune)"
+},
+"SolNode60": {
+"type": "Rescue",
+"value": "Caliban (Uranus)"
+},
+"SolNode61": {
+"type": "Sabotage",
+"value": "Ishtar (Venus)"
+},
+"SolNode62": {
+"type": "Extermination",
+"value": "Neso (Neptune)"
+},
+"SolNode63": {
+"type": "Capture",
+"value": "Mantle (Earth)"
+},
+"SolNode64": {
+"type": "Interception",
+"value": "Umbriel (Uranus)"
+},
+"SolNode65": {
+"type": "Sabotage",
+"value": "Gradivus (Mars)"
+},
+"SolNode66": {
+"type": "Spy",
+"value": "Unda (Venus)"
+},
+"SolNode67": {
+"type": "Spy",
+"value": "Dione (Saturn)"
+},
+"SolNode68": {
+"type": "Mobile Defense",
+"value": "Vallis (Mars)"
+},
+"SolNode69": {
+"type": "Survival",
+"value": "Ophelia (Uranus)"
+},
+"SolNode7": {
+"type": "Ancient Retribution",
+"value": "Epimetheus (Saturn)"
+},
+"SolNode70": {
+"type": "Capture",
+"value": "Cassini (Saturn)"
+},
+"SolNode706": {
+"type": "Capture",
+"value": "Horend (Deimos)"
+},
+"SolNode707": {
+"type": "Defense",
+"value": "Hyf (Deimos)"
+},
+"SolNode708": {
+"type": "Extermination",
+"value": "Phlegyas (Deimos)"
+},
+"SolNode709": {
+"type": "Mobile Defense",
+"value": "Dirus (Deimos)"
+},
+"SolNode71": {
+"type": "Spy",
+"value": "Vesper (Venus)"
+},
+"SolNode710": {
+"type": "Sabotage",
+"value": "Formido (Deimos)"
+},
+"SolNode711": {
+"type": "Survival",
+"value": "Terrorem (Deimos)"
+},
+"SolNode712": {
+"type": "Assassination",
+"value": "Magnacidium (Deimos)"
+},
+"SolNode713": {
+"type": "Assassination",
+"value": "Exequias (Deimos)"
+},
+"SolNode714": {
+"type": "Relay",
+"value": "Sanctum Anatomica (Deimos)"
+},
+"SolNode715": {
+"type": "Assassination",
+"value": "Effervo (Deimos)"
+},
+"SolNode716": {
+"type": "Extermination",
+"value": "Nex (Deimos)"
+},
+"SolNode717": {
+"type": "Survival",
+"value": "Persto (Deimos)"
+},
+"SolNode718": {
+"type": "Alchemy",
+"value": "Cambire (Deimos)"
+},
+"SolNode719": {
+"type": "Mirror Defense",
+"value": "Munio (Deimos)"
+},
+"SolNode72": {
+"type": "Defense",
+"value": "Outer Terminus (Pluto)"
+},
+"SolNode720": {
+"type": "Netracells",
+"value": "Testudo (Deimos)"
+},
+"SolNode721": {
+"type": "Disruption",
+"value": "Armatus (Deimos)"
+},
+"SolNode723": {
+"type": "Ascension",
+"value": "Brutus (Uranus)"
+},
+"SolNode73": {
+"type": "Capture",
+"value": "Ananke (Jupiter)"
+},
+"SolNode74": {
+"type": "Mobile Defense",
+"value": "Carme (Jupiter)"
+},
+"SolNode740": {
+"type": "Assassination",
+"value": "The Ropalolyst (Jupiter)"
+},
+"SolNode741": {
+"type": "Assault",
+"value": "Koro (Kuva Fortress)"
+},
+"SolNode742": {
+"type": "Defense",
+"value": "Nabuk (Kuva Fortress)"
+},
+"SolNode743": {
+"type": "Mobile Defense",
+"value": "Rotuma (Kuva Fortress)"
+},
+"SolNode744": {
+"type": "Survival",
+"value": "Taveuni (Kuva Fortress)"
+},
+"SolNode745": {
+"type": "Disruption",
+"value": "Tamu (Kuva Fortress)"
+},
+"SolNode746": {
+"type": "Extermination",
+"value": "Dakata (Kuva Fortress)"
+},
+"SolNode747": {
+"type": "Spy",
+"value": "Pago (Kuva Fortress)"
+},
+"SolNode748": {
+"type": "Rescue",
+"value": "Garus (Kuva Fortress)"
+},
+"SolNode75": {
+"type": "Sabotage",
+"value": "Cervantes (Earth)"
+},
+"SolNode76": {
+"type": "Capture",
+"value": "Hydra (Pluto)"
+},
+"SolNode77": {
+"type": "Ancient Retribution",
+"value": "Cupid (Uranus)"
+},
+"SolNode78": {
+"type": "Rescue",
+"value": "Triton (Neptune)"
+},
+"SolNode79": {
+"type": "Spy",
+"value": "Cambria (Earth)"
+},
+"SolNode8": {
+"type": "Ancient Retribution",
+"value": "Nix (Pluto)"
+},
+"SolNode80": {
+"type": "Ancient Retribution",
+"value": "Phoebe (Saturn)"
+},
+"SolNode81": {
+"type": "Survival",
+"value": "Palus (Pluto)"
+},
+"SolNode82": {
+"type": "Sabotage",
+"value": "Calypso (Saturn)"
+},
+"SolNode83": {
+"type": "Mobile Defense",
+"value": "Cressida (Uranus)"
+},
+"SolNode84": {
+"type": "Spy",
+"value": "Nereid (Neptune)"
+},
+"SolNode85": {
+"type": "Interception",
+"value": "Gaia (Earth)"
+},
+"SolNode86": {
+"type": "Ancient Retribution",
+"value": "Aegaeon (Saturn)"
+},
+"SolNode87": {
+"type": "Disruption",
+"value": "Ganymede (Jupiter)"
+},
+"SolNode88": {
+"type": "Sabotage",
+"value": "Adrastea (Jupiter)"
+},
+"SolNode89": {
+"type": "Extermination",
+"value": "Mariana (Earth)"
+},
+"SolNode9": {
+"type": "Spy",
+"value": "Rosalind (Uranus)"
+},
+"SolNode902": {
+"type": "Extermination (Archwing)",
+"value": "Montes (Venus)"
+},
+"SolNode903": {
+"type": "Mobile Defense (Archwing)",
+"value": "Erpo (Earth)"
+},
+"SolNode904": {
+"type": "Extermination (Archwing)",
+"value": "Syrtis (Mars)"
+},
+"SolNode905": {
+"type": "Sabotage (Archwing)",
+"value": "Galilea (Jupiter)"
+},
+"SolNode906": {
+"type": "Pursuit (Archwing)",
+"value": "Pandora (Saturn)"
+},
+"SolNode907": {
+"type": "Interception (Archwing)",
+"value": "Caelus (Uranus)"
+},
+"SolNode908": {
+"type": "Mobile Defense (Archwing)",
+"value": "Salacia (Neptune)"
+},
+"SolNode91": {
+"type": "Ancient Retribution",
+"value": "Iapetus (Saturn)"
+},
+"SolNode92": {
+"type": "Ancient Retribution",
+"value": "Charon (Pluto)"
+},
+"SolNode93": {
+"type": "Mobile Defense",
+"value": "Keeler (Saturn)"
+},
+"SolNode94": {
+"type": "Survival",
+"value": "Apollodorus (Mercury)"
+},
+"SolNode95": {
+"type": "Ancient Retribution",
+"value": "Thalassa (Neptune)"
+},
+"SolNode96": {
+"type": "Survival",
+"value": "Titan (Saturn)"
+},
+"SolNode97": {
+"type": "Spy",
+"value": "Amalthea (Jupiter)"
+},
+"SolNode98": {
+"type": "Sabotage (Archwing)",
+"value": "Desdemona (Uranus)"
+},
+"SolNode99": {
+"type": "Assassination",
+"value": "War (Mars)"
+}
+}

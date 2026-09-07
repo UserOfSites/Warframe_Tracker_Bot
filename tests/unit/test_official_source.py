@@ -16,15 +16,18 @@ class _Resp:
         return self._data
 
 
-async def test_node_map_degrades_to_empty_when_solnodes_down(monkeypatch):
+async def test_node_map_falls_back_to_bundled_snapshot_when_solnodes_down(monkeypatch):
     src = OfficialWorldStateSource()
     try:
         async def boom():
             raise httpx.ConnectError("down")
 
         monkeypatch.setattr(src, "_node_map_from_solnodes", boom)
-        # No last-known map -> empty, and crucially no exception.
-        assert await src._ensure_node_map() == {}
+        # No last-known map, and crucially no exception: the bundled offline
+        # snapshot is used so names still resolve.
+        node_map = await src._ensure_node_map()
+        assert len(node_map) > 100  # snapshot has a few hundred nodes
+        assert node_map["SolNode122"] == ("Stephano", "Uranus", "Defense")
     finally:
         await src.aclose()
 
@@ -72,9 +75,9 @@ async def test_fetch_fissures_survives_solnodes_outage(monkeypatch):
         fissures = await src.fetch_fissures()
         assert len(fissures) == 1
         f = fissures[0]
-        # Node name degrades to the raw id, but everything else is intact.
-        assert f.node == "SolNode122"
-        assert f.mission_type.value == "Defense"  # from DE's MT_ code
+        # Name still resolves from the bundled snapshot even with /solnodes down.
+        assert f.node == "Stephano" and f.planet == "Uranus"
+        assert f.mission_type.value == "Defense"
         assert f.era.value == "Neo"
         assert f.is_steel_path is True
     finally:
