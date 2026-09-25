@@ -20,6 +20,10 @@ class CachedDataSource:
     - **Void trader** has a single relevant transition per cached state:
       either "Baro arrives" (``activation``) or "Baro leaves" (``expiry``).
       Cache until that.
+    - **Vault trader (Varzia)** looks similar but isn't: its ``schedule`` gains
+      the next rotation mid-window (an announcement) without touching the top-
+      level ``activation``/``expiry``. Caching until the window transition would
+      hide that for weeks, so we cap validity at the short fallback TTL.
     - **Node catalog / details** only change with a Warframe update — long-
       lived cache, unchanged from before.
     """
@@ -268,8 +272,15 @@ class CachedDataSource:
                 return dict(self._vault_trader)
             fresh = await self._inner.fetch_vault_trader()
             self._vault_trader = fresh
+            # Unlike Baro, Varzia's payload gains the *next* rotation mid-window
+            # (DE announces it partway through the current pack) while the top-
+            # level activation/expiry stay pinned to the current pack. Caching
+            # until that transition would hide a newly-announced rotation for
+            # weeks, so cap validity at the short fallback TTL.
+            transition = self._next_void_trader_transition(fresh, now)
+            horizon = now + self._fallback
             self._vault_trader_valid_until = (
-                self._next_void_trader_transition(fresh, now) or now + self._fallback
+                min(transition, horizon) if transition else horizon
             )
             return dict(fresh)
 

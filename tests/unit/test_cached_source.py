@@ -208,3 +208,39 @@ async def test_void_trader_refetches_after_transition_passes():
     await cache.fetch_void_trader()
     # First call refetched (no cache); second served from the fallback TTL.
     assert stub.vt_calls == 1
+
+
+async def test_vault_trader_not_cached_until_window_transition():
+    """Varzia's ``schedule`` gains the next rotation mid-window while the top-
+    level ``activation``/``expiry`` stay pinned to the *current* pack. If we
+    cached until that far-off expiry we'd hide the newly-announced rotation for
+    weeks — so validity must be capped at the short fallback TTL, letting a
+    later fetch pick the announcement up. Regresses the "Varzia not showing the
+    announced Protea/Ivara rotation" bug.
+    """
+    window_end = datetime.now(timezone.utc) + timedelta(days=20)
+
+    class _VarziaStub(_StubSource):
+        def __init__(self):
+            super().__init__()
+            self.vt_calls = 0
+
+        async def fetch_vault_trader(self):
+            self.vt_calls += 1
+            return {
+                "activation": (datetime.now(timezone.utc) - timedelta(days=8))
+                .isoformat().replace("+00:00", "Z"),
+                "expiry": window_end.isoformat().replace("+00:00", "Z"),
+                "inventory": [],
+                "schedule": [],
+            }
+
+    stub = _VarziaStub()
+    cache = CachedDataSource(stub, ttl_seconds=60)
+    # Validity is capped at the fallback horizon, well before the 20-day window
+    # end, so it must not be pinned to that far-off transition.
+    await cache.fetch_vault_trader()
+    horizon = datetime.now(timezone.utc) + timedelta(seconds=60)
+    assert cache._vault_trader_valid_until is not None
+    assert cache._vault_trader_valid_until <= horizon + timedelta(seconds=5)
+    assert cache._vault_trader_valid_until < window_end
